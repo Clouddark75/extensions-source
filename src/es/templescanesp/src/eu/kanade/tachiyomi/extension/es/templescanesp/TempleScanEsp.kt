@@ -138,6 +138,7 @@ class TempleScanEsp :
 
         val headers = headersBuilder()
             .set("Referer", document.location())
+            .set("Origin", baseUrl)
             .build()
 
         val body = FormBody.Builder().apply {
@@ -146,6 +147,10 @@ class TempleScanEsp :
             }
         }.build()
 
+        // Esperar 3 segundos como lo hace el JavaScript del sitio
+        Thread.sleep(3000)
+
+        // POST al sitio de redirección
         val redirectedDoc = client.newCall(POST(url, headers, body)).execute().asJsoup()
 
         return super.pageListParse(redirectedDoc)
