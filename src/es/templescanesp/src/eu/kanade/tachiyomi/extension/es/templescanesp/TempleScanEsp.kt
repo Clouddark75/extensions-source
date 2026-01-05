@@ -148,7 +148,7 @@ class TempleScanEsp :
         }.build()
 
         // Esperar 3 segundos como lo hace el JavaScript del sitio
-        Thread.sleep(1000)
+        Thread.sleep(10)
 
         // POST al sitio de redirección
         val redirectedDoc = client.newCall(POST(url, headers, body)).execute().asJsoup()
