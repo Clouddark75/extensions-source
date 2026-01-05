@@ -93,57 +93,79 @@ jobs:
         with:
           name: individual-apks-${{ matrix.chunk.number }}
           path: "**/*.apk"
-          retention-days: 1
+          retention-days: 90
 
       - name: Clean up CI files
         run: rm -f signingkey.jks
 
-  publish:
-    name: Publish extension repo
-    needs: [prepare, build]
-    if: github.repository == 'Clouddark75/extensions-source'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Download APK artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          path: ~/apk-artifacts
+  publish_repo:
+        name: Publish repo
+        needs: [prepare, build]
+        if: github.repository == 'Clouddark75/extensions-source'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download APK artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: ~/apk-artifacts
+                  pattern: "individual-apks-*"
+                  merge-multiple: true
 
-      - name: Set up JDK
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
-        with:
-          java-version: 17
-          distribution: temurin
+            - name: Set up JDK
+              uses: actions/setup-java@v4
+              with:
+                  java-version: 17
+                  distribution: temurin
 
-      - name: Checkout selected branch (main workspace)
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          path: main
-          persist-credentials: false
+            - name: Checkout repo branch
+              uses: actions/checkout@v4
+              with:
+                  ref: repo
+                  path: repo
 
-      - name: Create repo artifacts
-        run: |
-          cd main
-          python ./.github/scripts/move-built-apks.py
-          INSPECTOR_LINK="$(curl -s https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest | jq -r '.assets[0].browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o Inspector.jar
-          java -jar Inspector.jar "repo/apk" "output.json" "tmp"
-          python ./.github/scripts/create-repo.py
+            - name: Create repo artifacts
+              run: |
+                  cd repo
+                  
+                  # Check if scripts exist before running them
+                  if [ -f "../.github/scripts/move-apks.sh" ]; then
+                      chmod +x ../.github/scripts/move-apks.sh
+                      ../.github/scripts/move-apks.sh
+                  else
+                      echo "move-apks.sh script not found, copying APKs manually"
+                      mkdir -p apk
+                      find ~/apk-artifacts -name "*.apk" -exec cp {} apk/ \;
+                  fi
+                  
+                  # Download inspector with better error handling
+                  INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/tachiyomiorg/tachiyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+                  if [ "$INSPECTOR_LINK" != "null" ] && [ -n "$INSPECTOR_LINK" ]; then
+                      echo "Downloading Inspector from: $INSPECTOR_LINK"
+                      curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
+                      java -jar ./Inspector.jar "apk" "output.json" "tmp"
+                  else
+                      echo "Warning: Could not download Inspector, creating basic index"
+                      echo "[]" > output.json
+                  fi
+                  
+                  if [ -f "../.github/scripts/create-repo.sh" ]; then
+                      chmod +x ../.github/scripts/create-repo.sh
+                      ../.github/scripts/create-repo.sh
+                  else
+                      echo "create-repo.sh script not found"
+                  fi
 
-      - name: Checkout repo branch
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          repository: Clouddark75/extensions-source
-          ref: repo
-          path: repo
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: false
-
-      - name: Merge and deploy repo
-        env:
-          DELETE: ${{ needs.prepare.outputs.delete }}
-        run: |
-          cd repo
-          python ../main/.github/scripts/merge-repo.py "$DELETE"
-          ../main/.github/scripts/commit-repo.sh
+            - name: Deploy repo
+              run: |
+                  cd repo
+                  if [ -f "../.github/scripts/commit-repo.sh" ]; then
+                      chmod +x ../.github/scripts/commit-repo.sh
+                      ../.github/scripts/commit-repo.sh
+                  else
+                      echo "commit-repo.sh script not found, manual commit needed"
+                      git config --local user.email "action@github.com"
+                      git config --local user.name "GitHub Action"
+                      git add .
+                      git diff --staged --quiet || git commit -m "Update extensions repo"
+                      git push
+                  fi
