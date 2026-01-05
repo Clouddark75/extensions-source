@@ -138,7 +138,7 @@ jobs:
           ref: repo
           path: repo
           token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Merge and deploy repo
         env:
