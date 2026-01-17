@@ -55,6 +55,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override val baseUrl = "https://theblank.net"
     private val baseHttpUrl = baseUrl.toHttpUrl()
     override val supportsLatest = true
+    override val versionId = 2
     private val preferences by getPreferencesLazy()
 
     override val client = network.cloudflareClient.newBuilder()
