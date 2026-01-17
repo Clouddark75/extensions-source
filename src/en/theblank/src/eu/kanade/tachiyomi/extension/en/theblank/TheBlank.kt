@@ -40,6 +40,7 @@ import okio.buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.security.KeyPairGenerator
+import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.spec.MGF1ParameterSpec
@@ -55,7 +56,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override val baseUrl = "https://theblank.net"
     private val baseHttpUrl = baseUrl.toHttpUrl()
     override val supportsLatest = true
-    override val versionId = 2
     private val preferences by getPreferencesLazy()
 
     override val client = network.cloudflareClient.newBuilder()
@@ -427,65 +427,61 @@ class TheBlank : HttpSource(), ConfigurableSource {
         val fragment = request.url.fragment
             ?.takeIf { it != THUMBNAIL_FRAGMENT }
             ?: return response
-
         val headerNonce = response.header("x-stream-header")
             ?: return response
 
         return try {
-            // ===== 1️⃣ Nonce (24 bytes) =====
             val nonce = decodeUrlSafeBase64(headerNonce)
-            require(nonce.size == 24) {
-                "Invalid nonce size: ${nonce.size}"
+            if (nonce.size != 24) {
+                throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
             }
 
-            // ===== 2️⃣ Session key (32 bytes) =====
-            // ❌ NO SHA-256
-            // ✅ Base64 directo
-            val key = Base64.decode(fragment, Base64.DEFAULT)
-            require(key.size == 32) {
-                "Invalid session key size: ${key.size}"
+            val key = MessageDigest.getInstance("SHA-256")
+                .digest(fragment.toByteArray(Charsets.UTF_8))
+            if (key.size != 32) {
+                throw IOException("Invalid key size: ${key.size}, expected 32")
             }
 
             val networkSource = response.body.source()
-
             val decryptedSource = object : okio.Source {
                 private val secretStream = SecretStream()
                 private val state = State()
                 private val decryptedBuffer = Buffer()
-
-                private var initialized = false
-                private var finished = false
+                private var isFinished = false
+                private var isInitialized = false
 
                 override fun read(sink: Buffer, byteCount: Long): Long {
-                    if (finished) return -1
-
-                    if (!initialized) {
+                    if (!isInitialized) {
                         val initResult = secretStream.initPull(state, nonce, key)
                         if (initResult != 0) {
-                            throw IOException("SecretStream initPull failed")
+                            throw IOException("Failed to initialize decryption stream")
                         }
-                        initialized = true
+                        isInitialized = true
                     }
 
                     if (decryptedBuffer.size == 0L) {
-                        // ===== 3️⃣ Leer EXACTAMENTE un chunk =====
-                        if (!networkSource.request(CHUNK_SIZE.toLong())) {
-                            finished = true
+                        if (isFinished) return -1
+
+                        networkSource.request(CHUNK_SIZE.toLong())
+
+                        val chunkSize = minOf(CHUNK_SIZE.toLong(), networkSource.buffer.size)
+
+                        if (chunkSize == 0L) {
+                            isFinished = true
                             return -1
                         }
 
-                        val encryptedChunk = networkSource.readByteArray(CHUNK_SIZE.toLong())
+                        val encryptedData = Buffer().apply {
+                            networkSource.read(this, chunkSize)
+                        }.readByteArray()
 
-                        val result = secretStream.pull(
-                            state,
-                            encryptedChunk,
-                            encryptedChunk.size,
-                        ) ?: throw IOException("SecretStream pull failed")
+                        val result = secretStream.pull(state, encryptedData, encryptedData.size)
+                            ?: throw IOException("Decryption failed for chunk")
 
                         decryptedBuffer.write(result.message)
 
                         if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            finished = true
+                            isFinished = true
                         }
                     }
 
@@ -493,6 +489,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 }
 
                 override fun timeout(): Timeout = networkSource.timeout()
+
                 override fun close() = networkSource.close()
             }.buffer()
 
