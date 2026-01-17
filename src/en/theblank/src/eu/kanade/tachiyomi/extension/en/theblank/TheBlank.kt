@@ -480,7 +480,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                             state,
                             encryptedChunk,
                             encryptedChunk.size
-                        ) ?: throw IOException("SecretStream pull failed"),
+                        ) ?: throw IOException("SecretStream pull failed");
 
                         decryptedBuffer.write(result.message)
 
