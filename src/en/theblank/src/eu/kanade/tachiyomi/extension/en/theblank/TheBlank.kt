@@ -55,6 +55,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override val lang = "en"
     override val baseUrl = "https://theblank.net"
     private val baseHttpUrl = baseUrl.toHttpUrl()
+    override val versionId = 2
     override val supportsLatest = true
     private val preferences by getPreferencesLazy()
 
