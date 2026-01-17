@@ -475,11 +475,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
                     while (decryptedBuffer.size < byteCount && offset < encryptedData.size) {
                         // Calculate remaining data
                         val remaining = encryptedData.size - offset
-                        
+
                         // Each chunk is: 1 byte tag + up to 8192 bytes data + 16 bytes MAC = up to 8209 bytes
                         // Read exactly one chunk
                         val chunkSize = minOf(CHUNK_SIZE, remaining)
-                        
+
                         if (chunkSize < ABYTES) {
                             // Not enough data for even the overhead
                             break
