@@ -338,13 +338,13 @@ class TheBlank : HttpSource(), ConfigurableSource {
         val sid = decodeUrlSafeBase64(
             fetchSessionId(keyPair.publicKeyBase64),
         )
-        val key = rsaDecrypt(keyPair.keyPair.private, sid)
+        val sessionKey = rsaDecrypt(keyPair.keyPair.private, sid)
 
         return signedUrls.mapIndexed { idx, img ->
             Page(
                 index = idx,
                 imageUrl = img.toHttpUrl().newBuilder()
-                    .fragment(key)
+                    .fragment(sessionKey)
                     .build()
                     .toString(),
             )
@@ -474,7 +474,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
         }.buffer()
 
         return response.newBuilder()
-            .body(decryptedSource.asResponseBody("image/jpg".toMediaType()))
+            .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
             .build()
     }
 
