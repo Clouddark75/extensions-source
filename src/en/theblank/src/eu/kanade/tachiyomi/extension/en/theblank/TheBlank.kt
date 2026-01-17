@@ -538,7 +538,13 @@ class TheBlank : HttpSource(), ConfigurableSource {
         }
     }
 
-    private const val THUMBNAIL_FRAGMENT = "thumbnail"
-    private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-    private const val CHUNK_SIZE = 8209 // 1 (tag) + 8192 (data) + 16 (MAC)
-    private const val ABYTES = 17 // 1 (tag) + 16 (MAC)
+    
+    override fun imageUrlParse(response: Response): String {
+        throw UnsupportedOperationException()
+    }
+}
+
+private const val THUMBNAIL_FRAGMENT = "thumbnail"
+private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
+private const val CHUNK_SIZE = 8209 // 1 (tag) + 8192 (data) + 16 (MAC)
+private const val ABYTES = 17 // 1 (tag) + 16 (MAC)
