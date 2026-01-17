@@ -479,8 +479,8 @@ class TheBlank : HttpSource(), ConfigurableSource {
                         val result = secretStream.pull(
                             state,
                             encryptedChunk,
-                            encryptedChunk.size
-                        ) ?: throw IOException("SecretStream pull failed");
+                            encryptedChunk.size,
+                        ) ?: throw IOException("SecretStream pull failed")
 
                         decryptedBuffer.write(result.message)
 
@@ -499,12 +499,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
             response.newBuilder()
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
-
         } catch (e: Exception) {
-
             throw IOException("Image decryption error: ${e.message}", e)
         }
     }
+
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
     }
