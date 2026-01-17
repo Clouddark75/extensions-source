@@ -40,7 +40,6 @@ import okio.buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.security.KeyPairGenerator
-import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.spec.MGF1ParameterSpec
@@ -481,7 +480,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                             state,
                             encryptedChunk,
                             encryptedChunk.size
-                        ) ?: throw IOException("SecretStream pull failed")
+                        ) ?: throw IOException("SecretStream pull failed"),
 
                         decryptedBuffer.write(result.message)
 
@@ -502,6 +501,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 .build()
 
         } catch (e: Exception) {
+
             throw IOException("Image decryption error: ${e.message}", e)
         }
     }
