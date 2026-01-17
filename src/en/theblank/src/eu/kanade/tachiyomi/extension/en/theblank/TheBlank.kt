@@ -29,9 +29,6 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
@@ -40,7 +37,6 @@ import okio.buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.security.KeyPairGenerator
-import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.spec.MGF1ParameterSpec
@@ -51,17 +47,19 @@ import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
 
 class TheBlank : HttpSource(), ConfigurableSource {
+
     override val name = "The Blank"
     override val lang = "en"
     override val baseUrl = "https://theblank.net"
-    private val baseHttpUrl = baseUrl.toHttpUrl()
     override val supportsLatest = true
+
+    private val baseHttpUrl = baseUrl.toHttpUrl()
     private val preferences by getPreferencesLazy()
 
     override val client = network.cloudflareClient.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
-            return@addInterceptor if (request.url.fragment == THUMBNAIL_FRAGMENT) {
+            if (request.url.fragment == THUMBNAIL_FRAGMENT) {
                 thumbnailClient.newCall(request).execute()
             } else {
                 chain.proceed(request)
@@ -83,49 +81,56 @@ class TheBlank : HttpSource(), ConfigurableSource {
     @Synchronized
     private fun apiRequest(
         url: HttpUrl,
-        body: RequestBody? = null,
+        body: okhttp3.RequestBody? = null,
         includeXSRFToken: Boolean,
         includeCSRFToken: Boolean,
         includeVersion: Boolean,
-    ): Request {
+    ): okhttp3.Request {
         var xsrfToken = client.cookieJar.loadForRequest(baseHttpUrl)
-            .firstOrNull { it.name == "XSRF-TOKEN" }?.value
+            .firstOrNull { it.name == "XSRF-TOKEN" }
+            ?.value
 
         if (
             (includeXSRFToken && xsrfToken == null) ||
             (includeCSRFToken && csrfToken == null) ||
             (includeVersion && version == null)
         ) {
-            val document = client.newCall(GET(baseHttpUrl, headers)).execute()
+            val document = client.newCall(GET(baseHttpUrl, headers))
+                .execute()
                 .also {
                     if (!it.isSuccessful) {
                         it.close()
-                        throw Exception("HTTP Error ${it.code}")
+                        error("HTTP ${it.code}")
                     }
                 }
                 .asJsoup()
 
             version = document.selectFirst("#app")!!
                 .attr("data-page")
-                .parseAs<Version>().version
+                .parseAs<Version>()
+                .version
 
             csrfToken = document.selectFirst("meta[name=csrf-token]")!!
                 .attr("content")
 
             xsrfToken = client.cookieJar.loadForRequest(baseHttpUrl)
-                .first { it.name == "XSRF-TOKEN" }.value
+                .first { it.name == "XSRF-TOKEN" }
+                .value
         }
 
         val headers = headersBuilder().apply {
             set("Accept", "application/json")
             set("X-Requested-With", "XMLHttpRequest")
+
             if (includeVersion) {
                 set("X-Inertia", "true")
                 set("X-Inertia-Version", version!!)
             }
+
             if (includeXSRFToken) {
                 set("X-XSRF-TOKEN", xsrfToken!!)
             }
+
             if (includeCSRFToken) {
                 set("X-CSRF-TOKEN", csrfToken!!)
             }
@@ -150,51 +155,74 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override fun latestUpdatesParse(response: Response) =
         searchMangaParse(response)
 
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+    override fun searchMangaRequest(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): okhttp3.Request {
         if (query.isNotEmpty()) {
-            val url = baseHttpUrl.newBuilder().apply {
-                addPathSegments("api/v1/search/series")
-                addQueryParameter("q", query)
-            }.build()
+            val url = baseHttpUrl.newBuilder()
+                .addPathSegments("api/v1/search/series")
+                .addQueryParameter("q", query)
+                .build()
 
-            return apiRequest(url, includeXSRFToken = true, includeCSRFToken = false, includeVersion = false)
+            return apiRequest(
+                url = url,
+                includeXSRFToken = true,
+                includeCSRFToken = false,
+                includeVersion = false,
+            )
         }
 
         val url = baseHttpUrl.newBuilder().apply {
             addPathSegment("library")
+
             if (page > 1) {
                 addQueryParameter("page", page.toString())
             }
-            filters.firstInstanceOrNull<GenreFilter>()?.also { genre ->
-                genre.included.also { included ->
-                    if (included.isNotEmpty()) {
-                        addQueryParameter("include_genres", included.joinToString(","))
-                    }
+
+            filters.firstInstanceOrNull<GenreFilter>()?.let { genre ->
+                if (genre.included.isNotEmpty()) {
+                    addQueryParameter(
+                        "include_genres",
+                        genre.included.joinToString(","),
+                    )
                 }
-                genre.excluded.also { excluded ->
-                    if (excluded.isNotEmpty()) {
-                        addQueryParameter("exclude_genres", excluded.joinToString(","))
-                    }
-                }
-            }
-            filters.firstInstanceOrNull<TypeFilter>()?.also { type ->
-                type.included.also { included ->
-                    if (included.isNotEmpty()) {
-                        addQueryParameter("include_types", included.joinToString(","))
-                    }
-                }
-                type.excluded.also { excluded ->
-                    if (excluded.isNotEmpty()) {
-                        addQueryParameter("exclude_types", excluded.joinToString(","))
-                    }
+
+                if (genre.excluded.isNotEmpty()) {
+                    addQueryParameter(
+                        "exclude_genres",
+                        genre.excluded.joinToString(","),
+                    )
                 }
             }
-            filters.firstInstanceOrNull<StatusFilter>()?.also { status ->
+
+            filters.firstInstanceOrNull<TypeFilter>()?.let { type ->
+                if (type.included.isNotEmpty()) {
+                    addQueryParameter(
+                        "include_types",
+                        type.included.joinToString(","),
+                    )
+                }
+
+                if (type.excluded.isNotEmpty()) {
+                    addQueryParameter(
+                        "exclude_types",
+                        type.excluded.joinToString(","),
+                    )
+                }
+            }
+
+            filters.firstInstanceOrNull<StatusFilter>()?.let { status ->
                 if (status.checked.isNotEmpty()) {
-                    addQueryParameter("status", status.checked.joinToString(","))
+                    addQueryParameter(
+                        "status",
+                        status.checked.joinToString(","),
+                    )
                 }
             }
-            filters.firstInstance<SortFilter>().also { sort ->
+
+            filters.firstInstance<SortFilter>().let { sort ->
                 addQueryParameter("orderby", sort.sort)
                 if (sort.ascending) {
                     addQueryParameter("order", "asc")
@@ -202,7 +230,12 @@ class TheBlank : HttpSource(), ConfigurableSource {
             }
         }.build()
 
-        return apiRequest(url, includeXSRFToken = true, includeCSRFToken = false, includeVersion = false)
+        return apiRequest(
+            url = url,
+            includeXSRFToken = true,
+            includeCSRFToken = false,
+            includeVersion = false,
+        )
     }
 
     override fun getFilterList() = FilterList(
@@ -215,35 +248,37 @@ class TheBlank : HttpSource(), ConfigurableSource {
     )
 
     override fun searchMangaParse(response: Response): MangasPage {
-        if (response.request.url.queryParameter("q") != null) {
+        return if (response.request.url.queryParameter("q") != null) {
             val data = response.parseAs<List<BrowseManga>>()
-
-            return MangasPage(
+            MangasPage(
                 mangas = data.map { it.toSManga(::createThumbnailUrl) },
                 hasNextPage = false,
             )
         } else {
             val data = response.parseAs<LibraryResponse>().series
-
-            return MangasPage(
+            MangasPage(
                 mangas = data.data.map { it.toSManga(::createThumbnailUrl) },
                 hasNextPage = data.meta.current < data.meta.last,
             )
         }
     }
 
-    override fun mangaDetailsRequest(manga: SManga): Request {
-        val url = baseUrl.toHttpUrl().newBuilder()
+    override fun mangaDetailsRequest(manga: SManga): okhttp3.Request {
+        val url = baseHttpUrl.newBuilder()
             .addPathSegment("serie")
             .addPathSegment(manga.url)
             .build()
 
-        return apiRequest(url, includeXSRFToken = true, includeCSRFToken = false, includeVersion = true)
+        return apiRequest(
+            url = url,
+            includeXSRFToken = true,
+            includeCSRFToken = false,
+            includeVersion = true,
+        )
     }
 
-    override fun getMangaUrl(manga: SManga): String {
-        return "$baseUrl/serie/${manga.url}"
-    }
+    override fun getMangaUrl(manga: SManga): String =
+        "$baseUrl/serie/${manga.url}"
 
     override fun mangaDetailsParse(response: Response): SManga {
         val data = response.parseAs<MangaResponse>().props.serie
@@ -255,18 +290,19 @@ class TheBlank : HttpSource(), ConfigurableSource {
             author = data.author
             artist = data.artist
             description = buildString {
-                data.description?.also {
-                    append(it.trim(), "\n\n")
+                data.description?.let {
+                    append(it.trim())
+                    append("\n\n")
                 }
-                data.releaseYear?.also {
-                    append("Release: ", it, "\n\n")
+                data.releaseYear?.let {
+                    append("Release: $it\n\n")
                 }
-                data.alternativeName?.also {
-                    append("Alternative name: ", it)
+                data.alternativeName?.let {
+                    append("Alternative name: $it")
                 }
             }.trim()
             genre = buildList {
-                data.type?.name?.also(::add)
+                data.type?.name?.let(::add)
                 data.genres.mapTo(this) { it.name }
             }.joinToString()
             status = when (data.status) {
@@ -280,8 +316,12 @@ class TheBlank : HttpSource(), ConfigurableSource {
     }
 
     private fun createThumbnailUrl(imagePath: String?): String? {
+        if (imagePath == null) {
+            return null
+        }
+
         return baseHttpUrl.newBuilder()
-            .encodedPath(imagePath ?: return null)
+            .encodedPath(imagePath)
             .fragment(THUMBNAIL_FRAGMENT)
             .toString()
     }
@@ -295,26 +335,31 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
         return data.chapters
             .filter { !(it.isPremium && hidePremium) }
-            .map {
+            .map { chapter ->
                 SChapter.create().apply {
-                    url = baseUrl.toHttpUrl().newBuilder().apply {
-                        addPathSegment("serie")
-                        addPathSegment(data.slug)
-                        addPathSegment("chapter")
-                        addPathSegment(it.slug)
-                    }.build().encodedPath
+                    url = baseHttpUrl.newBuilder()
+                        .addPathSegment("serie")
+                        .addPathSegment(data.slug)
+                        .addPathSegment("chapter")
+                        .addPathSegment(chapter.slug)
+                        .build()
+                        .encodedPath
+
                     name = buildString {
-                        if (it.isPremium) {
-                            append("\uD83D\uDD12 ") // lock emoji
+                        if (chapter.isPremium) {
+                            append("\uD83D\uDD12 ")
                         }
-                        append(it.title)
+                        append(chapter.title)
                     }
-                    date_upload = dateFormat.tryParse(it.createdAt)
+
+                    date_upload = dateFormat.tryParse(chapter.createdAt)
                 }
-            }.asReversed()
+            }
+            .asReversed()
     }
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.ROOT)
+    private val dateFormat =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", Locale.ROOT)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         SwitchPreferenceCompat(screen.context).apply {
@@ -324,47 +369,59 @@ class TheBlank : HttpSource(), ConfigurableSource {
         }.also(screen::addPreference)
     }
 
-    override fun pageListRequest(chapter: SChapter): Request {
+    override fun pageListRequest(chapter: SChapter): okhttp3.Request {
         val url = "$baseUrl${chapter.url}".toHttpUrl()
-
-        return apiRequest(url, includeXSRFToken = true, includeCSRFToken = false, includeVersion = true)
+        return apiRequest(
+            url = url,
+            includeXSRFToken = true,
+            includeCSRFToken = false,
+            includeVersion = true,
+        )
     }
 
     override fun pageListParse(response: Response): List<Page> {
-    val signedUrls = response.parseAs<PageListResponse>().props.signedUrls
+        val signedUrls = response
+            .parseAs<PageListResponse>()
+            .props
+            .signedUrls
 
-    val keyPair = generateKeyPair()
-    val sid = decodeUrlSafeBase64(
-        fetchSessionId(keyPair.publicKeyBase64),
-    )
-    
-    // Decrypt the session ID to get the actual encryption key
-    val sessionKey = rsaDecrypt(keyPair.keyPair.private, sid)
-    
-    println("Session key: $sessionKey") // Debug log
+        val keyPair = generateKeyPair()
+        val sid = decodeUrlSafeBase64(fetchSessionId(keyPair.publicKeyBase64))
+        val sessionKey = rsaDecrypt(keyPair.keyPair.private, sid)
 
-    return signedUrls.mapIndexed { idx, img ->
-        Page(
-            index = idx,
-            imageUrl = img.toHttpUrl().newBuilder()
-                .fragment(sessionKey) // Use the raw session key, not a hash
-                .build()
-                .toString(),
-        )
+        return signedUrls.mapIndexed { index, img ->
+            Page(
+                index = index,
+                imageUrl = img.toHttpUrl()
+                    .newBuilder()
+                    .fragment(sessionKey)
+                    .build()
+                    .toString(),
+            )
+        }
     }
-}
 
     private fun fetchSessionId(publicKeyBase64: String): String {
         val url = "$baseUrl/api/v1/session".toHttpUrl()
+
         val body = buildJsonObject {
             put("clientPublicKey", publicKeyBase64)
             put("nonce", generateNonce())
-        }.toJsonString().toRequestBody("application/json".toMediaType())
+        }.toJsonString()
+            .toRequestBody("application/json".toMediaType())
 
-        val request = apiRequest(url, body, includeXSRFToken = false, includeCSRFToken = true, includeVersion = false)
+        val request = apiRequest(
+            url = url,
+            body = body,
+            includeXSRFToken = false,
+            includeCSRFToken = true,
+            includeVersion = false,
+        )
 
-        return client.newCall(request).execute()
-            .parseAs<SessionResponse>().sid
+        return client.newCall(request)
+            .execute()
+            .parseAs<SessionResponse>()
+            .sid
     }
 
     private fun generateKeyPair(): KeyPairResult {
@@ -373,7 +430,8 @@ class TheBlank : HttpSource(), ConfigurableSource {
         }
 
         val keyPair = generator.generateKeyPair()
-        val publicKeyBase64 = Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+        val publicKeyBase64 =
+            Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
 
         return KeyPairResult(keyPair, publicKeyBase64)
     }
@@ -392,21 +450,24 @@ class TheBlank : HttpSource(), ConfigurableSource {
         return timestampHex + randomHex
     }
 
-    private fun rsaDecrypt(privateKey: PrivateKey, encryptedData: ByteArray): String {
+    private fun rsaDecrypt(
+        privateKey: PrivateKey,
+        encryptedData: ByteArray,
+    ): String {
         val cipher = Cipher.getInstance("RSA/ECB/OAEPPadding").apply {
-            val oaepSpec = OAEPParameterSpec(
-                "SHA-256",
-                "MGF1",
-                MGF1ParameterSpec.SHA256,
-                PSource.PSpecified.DEFAULT,
+            init(
+                Cipher.DECRYPT_MODE,
+                privateKey,
+                OAEPParameterSpec(
+                    "SHA-256",
+                    "MGF1",
+                    MGF1ParameterSpec.SHA256,
+                    PSource.PSpecified.DEFAULT,
+                ),
             )
-
-            init(Cipher.DECRYPT_MODE, privateKey, oaepSpec)
         }
 
-        val decryptedBytes = cipher.doFinal(encryptedData)
-
-        return String(decryptedBytes, StandardCharsets.UTF_8)
+        return String(cipher.doFinal(encryptedData), StandardCharsets.UTF_8)
     }
 
     private fun decodeUrlSafeBase64(data: String): ByteArray {
@@ -419,114 +480,108 @@ class TheBlank : HttpSource(), ConfigurableSource {
     }
 
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
-    val request = chain.request()
-    val response = chain.proceed(request)
+        val request = chain.request()
+        val response = chain.proceed(request)
 
-    val sessionKey = request.url.fragment
-        ?.takeIf { it != THUMBNAIL_FRAGMENT }
-        ?: return response
+        val sessionKey = request.url.fragment
+            ?.takeIf { it != THUMBNAIL_FRAGMENT }
+            ?: return response
 
-    try {
-        // Convert session key to bytes (it might be hex or base64)
-        val keyBytes = when {
-            sessionKey.length == 64 -> {
-                // Assume hex encoding (32 bytes = 64 hex chars)
-                sessionKey.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        return try {
+            val keyBytes = when {
+                sessionKey.length == 64 -> {
+                    sessionKey.chunked(2)
+                        .map { it.toInt(16).toByte() }
+                        .toByteArray()
+                }
+                sessionKey.length == 44 && sessionKey.endsWith("=") -> {
+                    Base64.decode(sessionKey, Base64.DEFAULT)
+                }
+                else -> {
+                    sessionKey.toByteArray(Charsets.UTF_8)
+                        .take(32)
+                        .toByteArray()
+                }
             }
-            sessionKey.length == 44 && sessionKey.endsWith("=") -> {
-                // Assume base64 encoding
-                Base64.decode(sessionKey, Base64.DEFAULT)
-            }
-            else -> {
-                // Try as UTF-8 bytes and take first 32 bytes
-                sessionKey.toByteArray(Charsets.UTF_8).take(32).toByteArray()
-            }
-        }
 
-        println("Key bytes length: ${keyBytes.size}")
-        println("Key bytes (hex): ${keyBytes.joinToString("") { "%02x".format(it) }}")
+            val networkSource = response.body.source()
+            val decryptedSource = object : okio.Source {
+                private val secretStream = SecretStream()
+                private var state: State? = null
+                private val decryptedBuffer = Buffer()
+                private var isFinished = false
+                private var isInitialized = false
 
-        val networkSource = response.body.source()
-        val decryptedSource = object : okio.Source {
-            private val secretStream = SecretStream()
-            private var state: State? = null
-            private val decryptedBuffer = Buffer()
-            private var isFinished = false
-            private var isInitialized = false
+                override fun read(sink: Buffer, byteCount: Long): Long {
+                    if (decryptedBuffer.size == 0L) {
+                        if (isFinished) {
+                            return -1
+                        }
 
-            override fun read(sink: Buffer, byteCount: Long): Long {
-                if (decryptedBuffer.size == 0L) {
-                    if (isFinished) return -1
+                        if (!isInitialized) {
+                            networkSource.request(24)
 
-                    if (!isInitialized) {
-                        // Read the secretstream header (24 bytes)
-                        networkSource.request(24)
-                        if (networkSource.buffer.size < 24) {
-                            println("Not enough data for header")
+                            if (networkSource.buffer.size < 24) {
+                                isFinished = true
+                                return -1
+                            }
+
+                            val header =
+                                networkSource.buffer.readByteArray(24)
+
+                            state = State().also {
+                                secretStream.initPull(it, header, keyBytes)
+                            }
+
+                            isInitialized = true
+                        }
+
+                        networkSource.request(CHUNK_SIZE.toLong())
+
+                        val available = networkSource.buffer.size
+                        if (available == 0L) {
                             isFinished = true
                             return -1
                         }
-                        
-                        val header = networkSource.buffer.readByteArray(24)
-                        println("Header bytes: ${header.joinToString("") { "%02x".format(it) }}")
-                        
-                        state = State().apply {
-                            secretStream.initPull(this, header, keyBytes)
+
+                        val encrypted = Buffer().apply {
+                            networkSource.read(
+                                this,
+                                minOf(CHUNK_SIZE.toLong(), available),
+                            )
+                        }.readByteArray()
+
+                        val result = secretStream.pull(
+                            state ?: error("State not initialized"),
+                            encrypted,
+                            encrypted.size,
+                        ) ?: throw IOException("Decryption failed")
+
+                        decryptedBuffer.write(result.message)
+
+                        if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                            isFinished = true
                         }
-                        isInitialized = true
-                        println("SecretStream initialized")
                     }
 
-                    // Read encrypted chunk
-                    val requestSize = CHUNK_SIZE.toLong()
-                    networkSource.request(requestSize)
-                    val availableSize = networkSource.buffer.size
-                    
-                    if (availableSize == 0L) {
-                        isFinished = true
-                        return -1
-                    }
-
-                    val chunkSize = minOf(requestSize, availableSize)
-                    val encryptedData = Buffer().apply {
-                        networkSource.read(this, chunkSize)
-                    }.readByteArray()
-
-                    println("Decrypting chunk of ${encryptedData.size} bytes")
-
-                    val result = secretStream.pull(state!!, encryptedData, encryptedData.size)
-                    
-                    if (result == null) {
-                        println("Decryption failed!")
-                        throw IOException("Decryption failed")
-                    }
-
-                    decryptedBuffer.write(result.message)
-                    println("Decrypted ${result.message.size} bytes")
-
-                    if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                        println("Final chunk processed")
-                        isFinished = true
-                    }
+                    return decryptedBuffer.read(sink, byteCount)
                 }
 
-                return decryptedBuffer.read(sink, byteCount)
-            }
+                override fun timeout(): Timeout = networkSource.timeout()
+                override fun close() = networkSource.close()
+            }.buffer()
 
-            override fun timeout(): Timeout = networkSource.timeout()
-            override fun close() = networkSource.close()
-        }.buffer()
-
-        return response.newBuilder()
-            .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
-            .build()
-
-    } catch (e: Exception) {
-        println("Decryption error: ${e.message}")
-        e.printStackTrace()
-        return response
+            response.newBuilder()
+                .body(
+                    decryptedSource.asResponseBody(
+                        "image/jpeg".toMediaType(),
+                    ),
+                )
+                .build()
+        } catch (_: Exception) {
+            response
+        }
     }
-}
 
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
@@ -535,4 +590,4 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
 private const val THUMBNAIL_FRAGMENT = "thumbnail"
 private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-private const val CHUNK_SIZE = 8192 + 17 // Data size + ABYTES
+private const val CHUNK_SIZE = 8192 + 17 // data size + ABYTES
