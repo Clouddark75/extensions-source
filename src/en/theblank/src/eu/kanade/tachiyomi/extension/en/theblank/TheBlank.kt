@@ -443,6 +443,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 throw IOException("Invalid key size: ${key.size}, expected 32")
             }
 
+            android.util.Log.d("TheBlank", "Fragment (session key): $fragment")
+            android.util.Log.d("TheBlank", "Header nonce (base64): $headerNonce")
+            android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
+            android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
+
             val networkSource = response.body.source()
             val decryptedSource = object : okio.Source {
                 private val secretStream = SecretStream()
@@ -450,6 +455,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 private val decryptedBuffer = Buffer()
                 private var isFinished = false
                 private var isInitialized = false
+                private var chunkCount = 0
 
                 override fun read(sink: Buffer, byteCount: Long): Long {
                     if (!isInitialized) {
@@ -457,6 +463,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                         if (initResult != 0) {
                             throw IOException("Failed to initialize decryption stream")
                         }
+                        android.util.Log.d("TheBlank", "Stream initialized successfully")
                         isInitialized = true
                     }
 
@@ -476,12 +483,21 @@ class TheBlank : HttpSource(), ConfigurableSource {
                             networkSource.read(this, chunkSize)
                         }.readByteArray()
 
+                        chunkCount++
+                        android.util.Log.d("TheBlank", "Chunk $chunkCount: size=${encryptedData.size}, first 16 bytes: ${encryptedData.take(16).joinToString("") { "%02x".format(it) }}")
+
                         val result = secretStream.pull(state, encryptedData, encryptedData.size)
-                            ?: throw IOException("Decryption failed for chunk")
+                        if (result == null) {
+                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount")
+                            throw IOException("Decryption failed for chunk $chunkCount")
+                        }
+
+                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
 
                         decryptedBuffer.write(result.message)
 
                         if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                            android.util.Log.d("TheBlank", "Final tag received")
                             isFinished = true
                         }
                     }
@@ -498,6 +514,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
         } catch (e: Exception) {
+            android.util.Log.e("TheBlank", "Image decryption error", e)
             throw IOException("Image decryption error: ${e.message}", e)
         }
     }
