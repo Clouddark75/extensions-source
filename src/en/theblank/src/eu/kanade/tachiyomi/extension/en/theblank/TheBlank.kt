@@ -337,15 +337,13 @@ class TheBlank : HttpSource(), ConfigurableSource {
         val sid = decodeUrlSafeBase64(
             fetchSessionId(keyPair.publicKeyBase64),
         )
-
-        // Decrypt the session ID to get the actual encryption key
-        val sessionKey = rsaDecrypt(keyPair.keyPair.private, sid)
+        val key = rsaDecrypt(keyPair.keyPair.private, sid)
 
         return signedUrls.mapIndexed { idx, img ->
             Page(
                 index = idx,
                 imageUrl = img.toHttpUrl().newBuilder()
-                    .fragment(sessionKey) // Use the raw session key, not a hash
+                    .fragment(key)
                     .build()
                     .toString(),
             )
@@ -420,96 +418,63 @@ class TheBlank : HttpSource(), ConfigurableSource {
         val request = chain.request()
         val response = chain.proceed(request)
 
-        val sessionKey = request.url.fragment
+        val fragment = request.url.fragment
             ?.takeIf { it != THUMBNAIL_FRAGMENT }
             ?: return response
+        val headerNonce = response.header("x-stream-header")
+            ?: return response
 
-        return try {
-            // Convert session key to bytes (it might be hex or base64)
-            val keyBytes = when {
-                sessionKey.length == 64 -> {
-                    // Assume hex encoding (32 bytes = 64 hex chars)
-                    sessionKey.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-                }
-                sessionKey.length == 44 && sessionKey.endsWith("=") -> {
-                    // Assume base64 encoding
-                    Base64.decode(sessionKey, Base64.DEFAULT)
-                }
-                else -> {
-                    // Try as UTF-8 bytes and take first 32 bytes
-                    sessionKey.toByteArray(Charsets.UTF_8).take(32).toByteArray()
-                }
+        val nonce = decodeUrlSafeBase64(headerNonce)
+        val key = MessageDigest.getInstance("SHA-256")
+            .digest(fragment.toByteArray(Charsets.UTF_8))
+
+        val networkSource = response.body.source()
+        val decryptedSource = object : okio.Source {
+            private val secretStream = SecretStream()
+            private val state = State().apply {
+                secretStream.initPull(this, nonce, key)
             }
+            private val decryptedBuffer = Buffer()
+            private var isFinished = false
 
-            val networkSource = response.body.source()
-            val decryptedSource = object : okio.Source {
-                private val secretStream = SecretStream()
-                private var state: State? = null
-                private val decryptedBuffer = Buffer()
-                private var isFinished = false
-                private var isInitialized = false
+            override fun read(sink: Buffer, byteCount: Long): Long {
+                if (decryptedBuffer.size == 0L) {
+                    if (isFinished) return -1
 
-                override fun read(sink: Buffer, byteCount: Long): Long {
-                    if (decryptedBuffer.size == 0L) {
-                        if (isFinished) return -1
+                    networkSource.request(CHUNK_SIZE.toLong())
 
-                        if (!isInitialized) {
-                            // Read the secretstream header (24 bytes)
-                            networkSource.request(24)
-                            if (networkSource.buffer.size < 24) {
-                                isFinished = true
-                                return -1
-                            }
+                    val chunkSize = minOf(CHUNK_SIZE.toLong(), networkSource.buffer.size)
 
-                            val header = networkSource.buffer.readByteArray(24)
-
-                            state = State().apply {
-                                secretStream.initPull(this, header, keyBytes)
-                            }
-                            isInitialized = true
-                        }
-
-                        // Read encrypted chunk
-                        val requestSize = CHUNK_SIZE.toLong()
-                        networkSource.request(requestSize)
-                        val availableSize = networkSource.buffer.size
-
-                        if (availableSize == 0L) {
-                            isFinished = true
-                            return -1
-                        }
-
-                        val chunkSize = minOf(requestSize, availableSize)
-                        val encryptedData = Buffer().apply {
-                            networkSource.read(this, chunkSize)
-                        }.readByteArray()
-
-                        val result = secretStream.pull(state!!, encryptedData, encryptedData.size)
-
-                        if (result == null) {
-                            throw IOException("Decryption failed")
-                        }
-
-                        decryptedBuffer.write(result.message)
-
-                        if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            isFinished = true
-                        }
+                    if (chunkSize == 0L) {
+                        isFinished = true
+                        return -1
                     }
 
-                    return decryptedBuffer.read(sink, byteCount)
+                    val encryptedData = Buffer().apply {
+                        networkSource.read(this, chunkSize)
+                    }.readByteArray()
+
+                    val result = secretStream.pull(state, encryptedData, encryptedData.size)
+                        ?: throw IOException("Decryption failed")
+
+                    decryptedBuffer.write(result.message)
+
+                    if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                        isFinished = true
+                    }
                 }
 
-                override fun timeout(): Timeout = networkSource.timeout()
-                override fun close() = networkSource.close()
-            }.buffer()
+                return decryptedBuffer.read(sink, byteCount)
+            }
 
-            response.newBuilder()
-                .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
-                .build()
-        } catch (e: Exception) {
-            response
-        }
+            override fun timeout(): Timeout = networkSource.timeout()
+
+            override fun close() = networkSource.close()
+        }.buffer()
+
+        return response.newBuilder()
+            .body(decryptedSource.asResponseBody("image/jpg".toMediaType()))
+            .build()
     }
 
     override fun imageUrlParse(response: Response): String {
