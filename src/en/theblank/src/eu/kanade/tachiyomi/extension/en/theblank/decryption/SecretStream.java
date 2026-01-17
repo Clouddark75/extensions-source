@@ -78,7 +78,7 @@ public class SecretStream {
         // Generate the Poly1305 key from ChaCha20
         ChaCha20.streamIETF(block, 64, state.nonce, state.k);
         android.util.Log.d("SecretStream", "Poly1305 key block (first 32): " + bytesToHex(Arrays.copyOf(block, 32)));
-        
+
         Poly1305.init(poly1305State, block);
         Arrays.fill(block, (byte) 0); // Zero out block
 
@@ -92,20 +92,26 @@ public class SecretStream {
         Arrays.fill(block, (byte) 0);
         block[0] = in[0];
         android.util.Log.d("SecretStream", "Encrypted tag byte: 0x" + String.format("%02x", in[0]));
-        
+
         ChaCha20.streamIETFXorIC(block, block, 64, state.nonce, 1, state.k);
         byte tag = block[0];
         android.util.Log.d("SecretStream", "Decrypted tag: 0x" + String.format("%02x", tag));
-        
+
         block[0] = in[0]; // Restore encrypted tag for MAC
         Poly1305.update(poly1305State, block, 0, 64);
 
         // Update Poly1305 with ciphertext
         byte[] c = Arrays.copyOfRange(in, 1, 1 + (int)mlen);
         android.util.Log.d("SecretStream", "Ciphertext (first 32 bytes): " + bytesToHex(Arrays.copyOf(c, Math.min(32, c.length))));
-        
+
         Poly1305.update(poly1305State, c, 0, (int) mlen);
-        int padLen = (int) ((0x10 - (64 + mlen)) & 0xf);
+        
+        // CORRECCIÓN CRÍTICA: Calcular padding correctamente
+        // Necesitamos alinear (64 + mlen) a 16 bytes
+        long totalProcessed = 64 + mlen;
+        int padLen = (int) ((16 - (totalProcessed % 16)) % 16);
+        
+        android.util.Log.d("SecretStream", "Total processed before padding: " + totalProcessed);
         android.util.Log.d("SecretStream", "Poly1305 padding length: " + padLen);
         Poly1305.update(poly1305State, PAD0, 0, padLen);
 
@@ -124,13 +130,13 @@ public class SecretStream {
         int macEnd = macStart + 16;
         byte[] storedMac = Arrays.copyOfRange(in, macStart, macEnd);
         android.util.Log.d("SecretStream", "Stored MAC:   " + bytesToHex(storedMac));
-        
+
         if (!constantTimeCompare(mac, storedMac)) {
             android.util.Log.e("SecretStream", "MAC verification failed!");
             Arrays.fill(mac, (byte) 0);
             return null; // Authentication failed
         }
-        
+
         android.util.Log.d("SecretStream", "MAC verified successfully");
 
         // Decrypt message
