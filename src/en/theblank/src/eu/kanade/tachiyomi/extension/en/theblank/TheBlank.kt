@@ -448,12 +448,16 @@ class TheBlank : HttpSource(), ConfigurableSource {
             android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
             android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
-            val networkSource = response.body.source()
+            // Read the entire encrypted body into memory first
+            val encryptedData = response.body.bytes()
+            android.util.Log.d("TheBlank", "Total encrypted size: ${encryptedData.size}")
+            android.util.Log.d("TheBlank", "First 32 bytes: ${encryptedData.take(32).joinToString("") { "%02x".format(it) }}")
+
             val decryptedSource = object : okio.Source {
                 private val secretStream = SecretStream()
                 private val state = State()
                 private val decryptedBuffer = Buffer()
-                private var isFinished = false
+                private var offset = 0
                 private var isInitialized = false
                 private var chunkCount = 0
 
@@ -467,47 +471,62 @@ class TheBlank : HttpSource(), ConfigurableSource {
                         isInitialized = true
                     }
 
-                    if (decryptedBuffer.size == 0L) {
-                        if (isFinished) return -1
+                    // Fill decrypted buffer if needed
+                    while (decryptedBuffer.size < byteCount && offset < encryptedData.size) {
+                        // Calculate remaining data
+                        val remaining = encryptedData.size - offset
 
-                        networkSource.request(CHUNK_SIZE.toLong())
+                        // Each chunk is: 1 byte tag + up to 8192 bytes data + 16 bytes MAC = up to 8209 bytes
+                        // Read exactly one chunk
+                        val chunkSize = minOf(CHUNK_SIZE, remaining)
 
-                        val chunkSize = minOf(CHUNK_SIZE.toLong(), networkSource.buffer.size)
-
-                        if (chunkSize == 0L) {
-                            isFinished = true
-                            return -1
+                        if (chunkSize < ABYTES) {
+                            // Not enough data for even the overhead
+                            break
                         }
 
-                        val encryptedData = Buffer().apply {
-                            networkSource.read(this, chunkSize)
-                        }.readByteArray()
+                        val chunk = encryptedData.copyOfRange(offset, offset + chunkSize)
+                        offset += chunkSize
 
                         chunkCount++
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount: size=${encryptedData.size}, first 16 bytes: ${encryptedData.take(16).joinToString("") { "%02x".format(it) }}")
+                        android.util.Log.d("TheBlank", "Processing chunk $chunkCount:")
+                        android.util.Log.d("TheBlank", "  Chunk size: $chunkSize bytes")
+                        android.util.Log.d("TheBlank", "  First 32 bytes: ${chunk.take(32).joinToString("") { "%02x".format(it) }}")
+                        android.util.Log.d("TheBlank", "  Last 16 bytes (MAC): ${chunk.takeLast(16).joinToString("") { "%02x".format(it) }}")
 
-                        val result = secretStream.pull(state, encryptedData, encryptedData.size)
+                        val result = secretStream.pull(state, chunk, chunk.size)
                         if (result == null) {
                             android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount")
+                            android.util.Log.e("TheBlank", "  Expected plaintext size: ${chunkSize - ABYTES}")
                             throw IOException("Decryption failed for chunk $chunkCount")
                         }
 
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
+                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted successfully:")
+                        android.util.Log.d("TheBlank", "  Decrypted size: ${result.message.size} bytes")
+                        android.util.Log.d("TheBlank", "  Tag: ${result.tag} (0x${result.tag.toString(16).padStart(2, '0')})")
 
                         decryptedBuffer.write(result.message)
 
                         if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            android.util.Log.d("TheBlank", "Final tag received")
-                            isFinished = true
+                            android.util.Log.d("TheBlank", "Final tag received, decryption complete")
+                            break
                         }
                     }
 
-                    return decryptedBuffer.read(sink, byteCount)
+                    // Return -1 if no more data
+                    if (decryptedBuffer.size == 0L) {
+                        return -1
+                    }
+
+                    // Read from decrypted buffer
+                    return decryptedBuffer.read(sink, minOf(byteCount, decryptedBuffer.size))
                 }
 
-                override fun timeout(): Timeout = networkSource.timeout()
+                override fun timeout(): Timeout = Timeout.NONE
 
-                override fun close() = networkSource.close()
+                override fun close() {
+                    // Nothing to close
+                }
             }.buffer()
 
             response.newBuilder()
@@ -519,11 +538,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
         }
     }
 
-    override fun imageUrlParse(response: Response): String {
-        throw UnsupportedOperationException()
-    }
-}
-
-private const val THUMBNAIL_FRAGMENT = "thumbnail"
-private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-private const val CHUNK_SIZE = 8192 + 17 // Data size + ABYTES
+    private const val THUMBNAIL_FRAGMENT = "thumbnail"
+    private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
+    private const val CHUNK_SIZE = 8209 // 1 (tag) + 8192 (data) + 16 (MAC)
+    private const val ABYTES = 17 // 1 (tag) + 16 (MAC)
