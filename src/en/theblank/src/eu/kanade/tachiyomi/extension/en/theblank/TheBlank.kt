@@ -358,10 +358,16 @@ class TheBlank : HttpSource(), ConfigurableSource {
             put("nonce", generateNonce())
         }.toJsonString().toRequestBody("application/json".toMediaType())
 
-        val request = apiRequest(url, body, includeXSRFToken = false, includeCSRFToken = true, includeVersion = false)
+        val request = apiRequest(url, body, includeXSRFToken = true, includeCSRFToken = true, includeVersion = false)
 
-        return client.newCall(request).execute()
-            .parseAs<SessionResponse>().sid
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            val errorBody = response.body.string()
+            response.close()
+            throw Exception("Session API error: ${response.code} - $errorBody")
+        }
+
+        return response.parseAs<SessionResponse>().sid
     }
 
     private fun generateKeyPair(): KeyPairResult {
