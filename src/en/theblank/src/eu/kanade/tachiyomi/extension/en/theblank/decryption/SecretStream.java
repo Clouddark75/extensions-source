@@ -79,7 +79,7 @@ public class SecretStream {
         Poly1305.update(poly1305State, block, 0, 64);
         
         // Update Poly1305 with ciphertext
-        byte[] c = Arrays.copyOfRange(in, 1, in.length);
+        byte[] c = Arrays.copyOfRange(in, 1, 1 + (int)mlen);
         Poly1305.update(poly1305State, c, 0, (int) mlen);
         int padLen = (int) ((0x10 - 64 + mlen) & 0xf);
         Poly1305.update(poly1305State, PAD0, 0, padLen);
