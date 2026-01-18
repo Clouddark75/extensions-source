@@ -69,17 +69,19 @@ public class SecretStream {
         // Generate the Poly1305 key from ChaCha20
         ChaCha20.streamIETF(block, 64, state.nonce, state.k);
         Poly1305.init(poly1305State, block);
-        Arrays.fill(block, (byte) 0); // Zero out block
+        Arrays.fill(block, (byte) 0);
 
         // Update Poly1305 with additional data (if any)
-        long adlen_long = 0;
         if (ad != null && adlen > 0) {
             Poly1305.update(poly1305State, ad, 0, adlen);
-            Poly1305.update(poly1305State, PAD0, 0, (0x10 - adlen) & 0xf);
-            adlen_long = adlen;
+            // Pad additional data to 16 bytes
+            int padlen = (16 - (adlen % 16)) % 16;
+            if (padlen > 0) {
+                Poly1305.update(poly1305State, PAD0, 0, padlen);
+            }
         }
 
-        // Process the tag byte
+        // Process the encrypted tag byte (first byte)
         Arrays.fill(block, (byte) 0);
         block[0] = in[0];
         ChaCha20.streamIETFXorIC(block, block, 64, state.nonce, 1, state.k);
@@ -87,19 +89,21 @@ public class SecretStream {
         block[0] = in[0];
         Poly1305.update(poly1305State, block, 0, 64);
 
-        // Update Poly1305 with ciphertext
-        byte[] c = Arrays.copyOfRange(in, 1, 1 + (int) mlen);
-        Poly1305.update(poly1305State, c, 0, (int) mlen);
-
-        // Calculate padding to align ciphertext to 16 bytes
-        // The padding is for (64 + mlen), not just mlen
-        int padLen = (int) ((0x10 - ((64 + mlen) & 0xf)) & 0xf);
-        if (padLen > 0) {
-            Poly1305.update(poly1305State, PAD0, 0, padLen);
+        // Update Poly1305 with ciphertext (excluding tag byte and MAC)
+        if (mlen > 0) {
+            byte[] c = Arrays.copyOfRange(in, 1, 1 + (int) mlen);
+            Poly1305.update(poly1305State, c, 0, (int) mlen);
         }
 
-        // Finalize length encoding
-        store64_le(slen, 0, adlen_long);
+        // Pad the combination of 64-byte block + ciphertext to 16 bytes
+        long totalAuthLen = 64 + mlen;
+        int padlen = (int) ((16 - (totalAuthLen % 16)) % 16);
+        if (padlen > 0) {
+            Poly1305.update(poly1305State, PAD0, 0, padlen);
+        }
+
+        // Encode lengths
+        store64_le(slen, 0, ad != null ? adlen : 0);
         Poly1305.update(poly1305State, slen, 0, 8);
         store64_le(slen, 0, 64 + mlen);
         Poly1305.update(poly1305State, slen, 0, 8);
@@ -109,8 +113,7 @@ public class SecretStream {
 
         // Verify MAC
         int macStart = 1 + (int) mlen;
-        int macEnd = macStart + 16;
-        byte[] storedMac = Arrays.copyOfRange(in, macStart, macEnd);
+        byte[] storedMac = Arrays.copyOfRange(in, macStart, macStart + 16);
         if (!constantTimeCompare(mac, storedMac)) {
             Arrays.fill(mac, (byte) 0);
             return null; // Authentication failed
@@ -118,7 +121,10 @@ public class SecretStream {
 
         // Decrypt message
         byte[] m = new byte[(int) mlen];
-        ChaCha20.streamIETFXorIC(m, c, (int) mlen, state.nonce, 2, state.k);
+        if (mlen > 0) {
+            byte[] c = Arrays.copyOfRange(in, 1, 1 + (int) mlen);
+            ChaCha20.streamIETFXorIC(m, c, (int) mlen, state.nonce, 2, state.k);
+        }
 
         // XOR inonce with MAC
         for (int i = 0; i < 8; i++) {
@@ -146,7 +152,7 @@ public class SecretStream {
 
     // crypto_secretstream_xchacha20poly1305_rekey
     private void rekey(State state) {
-        byte[] newKeyAndInonce = new byte[32 + 8]; // key + inonce
+        byte[] newKeyAndInonce = new byte[32 + 8];
 
         // Copy current key and inonce
         System.arraycopy(state.k, 0, newKeyAndInonce, 0, 32);
