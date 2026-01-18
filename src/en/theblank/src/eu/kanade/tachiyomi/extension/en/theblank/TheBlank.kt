@@ -444,38 +444,22 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 .removeHeader("Content-Length")
                 .build()
             val source = rawResponse.body.source()
-            val buffer = Buffer()
             val decryptedChunks = ArrayList<ByteArray>()
             var chunkIndex = 0
-            var reachedFinal = false
+            var receivedFinal = false
             while (!source.exhausted()) {
-                source.read(buffer, CHUNK_SIZE.toLong())
-                while (buffer.size >= CHUNK_SIZE) {
-                    val encrypted = buffer.readByteArray(CHUNK_SIZE.toLong())
-                    chunkIndex++
-                    val result = secretStream.pull(state, encrypted, encrypted.size)
-                        ?: throw IOException("Decrypt failed at chunk $chunkIndex")
-                    decryptedChunks.add(result.message)
-                    if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                        reachedFinal = true
-                        buffer.clear()
-                        break
-                    }
-                }
-            }
-            // Procesar el último chunk restante (MENOR a CHUNK_SIZE)
-            if (!reachedFinal && buffer.size > 0) {
+                val encrypted = source.readByteArray(CHUNK_SIZE.toLong())
+                if (encrypted.isEmpty()) break
                 chunkIndex++
-                val finalChunk = buffer.readByteArray()
-                val result = secretStream.pull(state, finalChunk, finalChunk.size)
-                    ?: throw IOException("Decrypt failed at final chunk")
+                val result = secretStream.pull(state, encrypted, encrypted.size)
+                    ?: throw IOException("Decrypt failed at chunk $chunkIndex")
                 decryptedChunks.add(result.message)
-                if (result.tag.toInt() != SecretStream.TAG_FINAL) {
-                    throw IOException("SecretStream did not receive TAG_FINAL")
+                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                    receivedFinal = true
+                    break
                 }
-                reachedFinal = true
             }
-            if (!reachedFinal) {
+            if (!receivedFinal) {
                 throw IOException("SecretStream did not receive TAG_FINAL")
             }
             val totalSize = decryptedChunks.sumOf { it.size }
