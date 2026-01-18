@@ -449,23 +449,25 @@ class TheBlank : HttpSource(), ConfigurableSource {
             android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
             val networkSource = response.body.source()
+            
+            // CRITICAL: Each image needs its own decryption state
+            // Creating these here ensures thread-safety for parallel downloads
+            val secretStream = SecretStream()
+            val state = State()
+            
+            // Initialize the decryption state immediately
+            val initResult = secretStream.initPull(state, nonce, key)
+            if (initResult != 0) {
+                throw IOException("Failed to initialize decryption stream")
+            }
+            android.util.Log.d("TheBlank", "Stream initialized successfully")
+            
             val decryptedSource = object : okio.Source {
-                private val secretStream = SecretStream()
-                private val state = State()
                 private val decryptedBuffer = Buffer()
                 private var isFinished = false
-                private var isInitialized = false
                 private var chunkCount = 0
 
                 override fun read(sink: Buffer, byteCount: Long): Long {
-                    if (!isInitialized) {
-                        val initResult = secretStream.initPull(state, nonce, key)
-                        if (initResult != 0) {
-                            throw IOException("Failed to initialize decryption stream")
-                        }
-                        android.util.Log.d("TheBlank", "Stream initialized successfully")
-                        isInitialized = true
-                    }
 
                     // Return data from buffer if available
                     if (decryptedBuffer.size > 0L) {
