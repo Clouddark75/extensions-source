@@ -39,7 +39,7 @@ public class SecretStream {
             return -1;
         }
 
-        Core.HChaCha20(state.k, header, key, null);
+        Core.HCaCha20(state.k, header, key, null);
         counterReset(state);
         System.arraycopy(header, 16, state.nonce, 4, 8);
         Arrays.fill(state._pad, (byte) 0);
