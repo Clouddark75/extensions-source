@@ -532,8 +532,3 @@ class TheBlank : HttpSource(), ConfigurableSource {
         private const val CHUNK_SIZE = 65536 + 17 // Data size + ABYTES
     }
 }
-
-private data class KeyPairResult(
-    val keyPair: KeyPair,
-    val publicKeyBase64: String,
-)
