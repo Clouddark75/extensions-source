@@ -467,7 +467,12 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
             Log.d("TheBlank", "SecretStream initialized")
 
-            val source = response.body.source()
+            val rawResponse = response.newBuilder()
+                .removeHeader("Content-Encoding")
+                .removeHeader("Content-Length")
+                .build()
+
+            val source = rawResponse.body.source()
             val decryptedChunks = ArrayList<ByteArray>()
             var chunkCount = 0
 
@@ -490,7 +495,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 decryptedChunks.add(result.message)
 
                 // Termina cuando SecretStream indica el tag final
-                if (result.tag == SecretStream.TAG_FINAL) {
+                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
                     break
                 }
             }
