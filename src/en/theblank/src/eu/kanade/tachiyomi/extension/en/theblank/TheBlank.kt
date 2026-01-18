@@ -423,101 +423,87 @@ class TheBlank : HttpSource(), ConfigurableSource {
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
-
         val fragment = request.url.fragment
             ?.takeIf { it != THUMBNAIL_FRAGMENT }
             ?: return response
-
         val headerNonce = response.header("x-stream-header")
             ?: return response
-
         return try {
+            // === Decode SecretStream header ===
             val nonce = decodeUrlSafeBase64(headerNonce)
-
             if (nonce.size != 24) {
-                throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
+                throw IOException("Invalid nonce size: ${nonce.size}")
             }
-
+            // === Derive key ===
             val key = MessageDigest.getInstance("SHA-256")
                 .digest(fragment.toByteArray(Charsets.UTF_8))
-
             if (key.size != 32) {
-                throw IOException("Invalid key size: ${key.size}, expected 32")
+                throw IOException("Invalid key size: ${key.size}")
             }
-
-            Log.d("TheBlank", "Session key (fragment): $fragment")
-            Log.d("TheBlank", "x-stream-header (base64): $headerNonce")
-            Log.d(
-                "TheBlank",
-                "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}",
-            )
-            Log.d(
-                "TheBlank",
-                "Key (hex): ${key.joinToString("") { "%02x".format(it) }}",
-            )
-
+            Log.d("TheBlank", "SecretStream init OK")
+            // === Init SecretStream ===
             val secretStream = SecretStream()
             val state = State()
-
-            val initResult = secretStream.initPull(state, nonce, key)
-
-            if (initResult != 0) {
-                throw IOException("Failed to initialize SecretStream")
+            if (secretStream.initPull(state, nonce, key) != 0) {
+                throw IOException("SecretStream initPull failed")
             }
-
-            Log.d("TheBlank", "SecretStream initialized")
-
+            // === Prepare streaming source ===
             val rawResponse = response.newBuilder()
                 .removeHeader("Content-Encoding")
                 .removeHeader("Content-Length")
                 .build()
-
             val source = rawResponse.body.source()
+            val buffer = Buffer()
             val decryptedChunks = ArrayList<ByteArray>()
-            var chunkCount = 0
-
-            while (!source.exhausted()) {
-                val encryptedChunk = source.readByteArray(CHUNK_SIZE.toLong())
-                if (encryptedChunk.isEmpty()) {
+            var chunkIndex = 0
+            var reachedFinal = false
+            while (!source.exhausted() && !reachedFinal) {
+                val read = source.read(buffer, CHUNK_SIZE.toLong())
+                if (read == -1L) {
                     break
                 }
-
-                chunkCount++
-
-                Log.d(
-                    "TheBlank",
-                    "Decrypting chunk $chunkCount: size=${encryptedChunk.size}",
-                )
-
-                val result = secretStream.pull(state, encryptedChunk, encryptedChunk.size)
-                    ?: throw IOException("SecretStream decrypt failed at chunk $chunkCount")
-
-                decryptedChunks.add(result.message)
-
-                // Termina cuando SecretStream indica el tag final
-                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    break
+                while (buffer.size >= CHUNK_SIZE) {
+                    val encryptedChunk = buffer.readByteArray(CHUNK_SIZE.toLong())
+                    chunkIndex++
+                    val result = secretStream.pull(
+                        state,
+                        encryptedChunk,
+                        encryptedChunk.size,
+                    ) ?: throw IOException(
+                        "SecretStream decrypt failed at chunk $chunkIndex",
+                    )
+                    decryptedChunks.add(result.message)
+                    if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                        reachedFinal = true
+                        buffer.clear()
+                        break
+                    }
                 }
             }
-
+            if (!reachedFinal) {
+                throw IOException("SecretStream did not receive TAG_FINAL")
+            }
+            // === Combine decrypted data ===
             val totalSize = decryptedChunks.sumOf { it.size }
             val decryptedData = ByteArray(totalSize)
             var pos = 0
-
             for (part in decryptedChunks) {
                 part.copyInto(decryptedData, pos)
                 pos += part.size
             }
-
             Log.d(
                 "TheBlank",
-                "Decryption complete: chunks=${decryptedChunks.size}, totalSize=$totalSize",
+                "Image decrypted: chunks=${decryptedChunks.size}, size=$totalSize",
             )
-
-            val decryptedSource = Buffer().apply { write(decryptedData) }
-
+            val decryptedSource = Buffer().apply {
+                write(decryptedData)
+            }
             response.newBuilder()
-                .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
+                .body(
+                    decryptedSource.asResponseBody(
+                        "image/jpeg".toMediaType(),
+                    ),
+                )
                 .build()
         } catch (e: Exception) {
             Log.e("TheBlank", "Image decryption error", e)
