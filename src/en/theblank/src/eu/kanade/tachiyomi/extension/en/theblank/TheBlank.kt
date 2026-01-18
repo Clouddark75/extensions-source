@@ -492,6 +492,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     companion object {
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65536 + 17 // Data size + ABYTES
+        private const val CHUNK_SIZE = 65536 + 16 // Data size + ABYTES
     }
 }
