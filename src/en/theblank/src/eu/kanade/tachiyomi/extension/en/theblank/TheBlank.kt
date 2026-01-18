@@ -467,41 +467,65 @@ class TheBlank : HttpSource(), ConfigurableSource {
                         isInitialized = true
                     }
 
-                    if (decryptedBuffer.size == 0L) {
-                        if (isFinished) return -1
+                    // Return data from buffer if available
+                    if (decryptedBuffer.size > 0L) {
+                        return decryptedBuffer.read(sink, byteCount)
+                    }
 
-                        networkSource.request(CHUNK_SIZE.toLong())
+                    // If finished and buffer is empty, we're done
+                    if (isFinished) return -1
 
-                        val chunkSize = minOf(CHUNK_SIZE.toLong(), networkSource.buffer.size)
-
-                        if (chunkSize == 0L) {
+                    // Read exactly one encrypted chunk
+                    val encryptedChunkSize = CHUNK_SIZE.toLong()
+                    
+                    // Try to ensure we have enough data for a full chunk
+                    // request() returns false if source is exhausted
+                    val hasFullChunk = networkSource.request(encryptedChunkSize)
+                    
+                    if (!hasFullChunk) {
+                        // Not enough data for a full chunk - this might be the last chunk
+                        // Check if we have at least ABYTES (minimum valid encrypted chunk)
+                        if (!networkSource.request(ABYTES.toLong())) {
+                            // No more data at all
                             isFinished = true
                             return -1
                         }
-
-                        val encryptedData = Buffer().apply {
-                            networkSource.read(this, chunkSize)
-                        }.readByteArray()
-
-                        chunkCount++
-                        android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${encryptedData.size} bytes")
-
-                        val result = secretStream.pull(state, encryptedData, encryptedData.size)
-                        if (result == null) {
-                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${encryptedData.size})")
-                            throw IOException("Decryption failed for chunk $chunkCount")
-                        }
-
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted successfully: ${result.message.size} bytes, tag=${result.tag}")
-
-                        decryptedBuffer.write(result.message)
-
-                        if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
-                            isFinished = true
-                        }
                     }
 
+                    // Read exactly chunkSize bytes if available, otherwise read what's left
+                    val availableBytes = networkSource.buffer.size
+                    if (availableBytes == 0L) {
+                        isFinished = true
+                        return -1
+                    }
+
+                    // Read the chunk - for all chunks except the last, this should be CHUNK_SIZE
+                    // For the last chunk, it will be whatever remains
+                    val actualChunkSize = minOf(encryptedChunkSize, availableBytes)
+                    val encryptedData = networkSource.readByteArray(actualChunkSize)
+
+                    chunkCount++
+                    android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${encryptedData.size} bytes")
+
+                    // Decrypt the chunk
+                    val result = secretStream.pull(state, encryptedData, encryptedData.size)
+                    if (result == null) {
+                        android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${encryptedData.size})")
+                        throw IOException("Decryption failed for chunk $chunkCount")
+                    }
+
+                    android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted successfully: ${result.message.size} bytes, tag=${result.tag}")
+
+                    // Write decrypted data to buffer
+                    decryptedBuffer.write(result.message)
+
+                    // Check if this was the final chunk
+                    if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                        android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
+                        isFinished = true
+                    }
+
+                    // Return data from buffer
                     return decryptedBuffer.read(sink, byteCount)
                 }
 
@@ -527,3 +551,4 @@ class TheBlank : HttpSource(), ConfigurableSource {
 private const val THUMBNAIL_FRAGMENT = "thumbnail"
 private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
 private const val CHUNK_SIZE = 65536 + 17 // Data size + ABYTES (debe coincidir con el frontend)
+private const val ABYTES = 17 // Must match SecretStream.ABYTES
