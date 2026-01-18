@@ -446,31 +446,10 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 throw IOException("SecretStream initPull failed")
             }
 
-            var offset = 0
-            val output = java.io.ByteArrayOutputStream()
-            var gotFinal = false
+            val result = secretStream.pull(state, encrypted, encrypted.size)
+                ?: throw IOException("Decrypt failed")
 
-            while (offset < encrypted.size) {
-                val remaining = encrypted.size - offset
-                val frameSize =
-                    if (remaining > CHUNK_SIZE) CHUNK_SIZE
-                    else remaining
-                val frame = encrypted.copyOfRange(offset, offset + frameSize)
-                val result = secretStream.pull(state, frame, frameSize)
-                    ?: throw IOException("Decrypt failed at offset=$offset")
-                output.write(result.message)
-                offset += frameSize
-                if (result.tag == SecretStream.TAG_FINAL.toByte()) {
-                    gotFinal = true
-                    break
-                }
-            }
-
-            if (!gotFinal) {
-                throw IOException("SecretStream did not receive TAG_FINAL")
-            }
-
-            val decryptedBytes = output.toByteArray()
+            val decryptedBytes = result.message
 
             response.newBuilder()
                 .body(
@@ -492,6 +471,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     companion object {
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65536 + 17
+        private const val CHUNK_SIZE = 65536 + 16
     }
 }
