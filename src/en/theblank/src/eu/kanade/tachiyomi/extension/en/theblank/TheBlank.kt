@@ -55,7 +55,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override val lang = "en"
     override val baseUrl = "https://theblank.net"
     private val baseHttpUrl = baseUrl.toHttpUrl()
-    override val versionId = 2
     override val supportsLatest = true
     private val preferences by getPreferencesLazy()
 
@@ -484,20 +483,20 @@ class TheBlank : HttpSource(), ConfigurableSource {
                         }.readByteArray()
 
                         chunkCount++
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount: size=${encryptedData.size}, first 16 bytes: ${encryptedData.take(16).joinToString("") { "%02x".format(it) }}")
+                        android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${encryptedData.size} bytes")
 
                         val result = secretStream.pull(state, encryptedData, encryptedData.size)
                         if (result == null) {
-                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount")
+                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${encryptedData.size})")
                             throw IOException("Decryption failed for chunk $chunkCount")
                         }
 
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
+                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted successfully: ${result.message.size} bytes, tag=${result.tag}")
 
                         decryptedBuffer.write(result.message)
 
                         if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            android.util.Log.d("TheBlank", "Final tag received")
+                            android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
                             isFinished = true
                         }
                     }
