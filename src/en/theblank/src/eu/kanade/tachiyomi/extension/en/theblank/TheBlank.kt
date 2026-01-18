@@ -420,104 +420,113 @@ class TheBlank : HttpSource(), ConfigurableSource {
     }
 
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val response = chain.proceed(request)
+    val request = chain.request()
+    val response = chain.proceed(request)
 
-        val fragment = request.url.fragment
-            ?.takeIf { it != THUMBNAIL_FRAGMENT }
-            ?: return response
-        val headerNonce = response.header("x-stream-header")
-            ?: return response
+    val fragment = request.url.fragment
+        ?.takeIf { it != THUMBNAIL_FRAGMENT }
+        ?: return response
 
-        return try {
-            val nonce = decodeUrlSafeBase64(headerNonce)
-            if (nonce.size != 24) {
-                throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
-            }
+    val headerNonce = response.header("x-stream-header")
+        ?: return response
 
-            val key = MessageDigest.getInstance("SHA-256")
-                .digest(fragment.toByteArray(Charsets.UTF_8))
-            if (key.size != 32) {
-                throw IOException("Invalid key size: ${key.size}, expected 32")
-            }
-
-            android.util.Log.d("TheBlank", "Fragment (session key): $fragment")
-            android.util.Log.d("TheBlank", "Header nonce (base64): $headerNonce")
-            android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
-            android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
-
-            // Read the entire encrypted stream into memory first
-            val encryptedData = response.body.bytes()
-            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
-
-            // Initialize decryption state
-            val secretStream = SecretStream()
-            val state = State()
-            val initResult = secretStream.initPull(state, nonce, key)
-            if (initResult != 0) {
-                throw IOException("Failed to initialize decryption stream")
-            }
-            android.util.Log.d("TheBlank", "Stream initialized successfully")
-
-            // Decrypt all chunks
-            val decryptedChunks = mutableListOf<ByteArray>()
-            var offset = 0
-            var chunkCount = 0
-            val chunkSize = CHUNK_SIZE
-
-            while (offset < encryptedData.size) {
-                // Calculate this chunk's size (might be smaller for the last chunk)
-                val remainingBytes = encryptedData.size - offset
-                val currentChunkSize = minOf(chunkSize, remainingBytes)
-
-                // Extract the chunk
-                val chunk = encryptedData.copyOfRange(offset, offset + currentChunkSize)
-
-                chunkCount++
-                android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
-
-                // Decrypt the chunk
-                val result = secretStream.pull(state, chunk, chunk.size)
-                if (result == null) {
-                    android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${chunk.size})")
-                    throw IOException("Decryption failed for chunk $chunkCount at offset $offset")
-                }
-
-                android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
-                decryptedChunks.add(result.message)
-
-                // Move to next chunk
-                offset += currentChunkSize
-
-                // Check if this was the final chunk
-                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
-                    break
-                }
-            }
-
-            // Combine all decrypted chunks
-            val totalSize = decryptedChunks.sumOf { it.size }
-            val decryptedData = ByteArray(totalSize)
-            var position = 0
-            for (chunk in decryptedChunks) {
-                chunk.copyInto(decryptedData, position)
-                position += chunk.size
-            }
-
-            android.util.Log.d("TheBlank", "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
-
-            // Create a new response with the decrypted data
-            val decryptedSource = Buffer().apply { write(decryptedData) }
-
-            response.newBuilder()
-                .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
-                .build()
-        } catch (e: Exception) {
-            android.util.Log.e("TheBlank", "Image decryption error", e)
-            throw IOException("Image decryption error: ${e.message}", e)
+    return try {
+        // === Decode header nonce (SecretStream header) ===
+        val nonce = decodeUrlSafeBase64(headerNonce)
+        if (nonce.size != 24) {
+            throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
         }
+
+        // === Derive key from session key (URL fragment) ===
+        val key = MessageDigest.getInstance("SHA-256")
+            .digest(fragment.toByteArray(Charsets.UTF_8))
+        if (key.size != 32) {
+            throw IOException("Invalid key size: ${key.size}, expected 32")
+        }
+
+        android.util.Log.d("TheBlank", "Session key (fragment): $fragment")
+        android.util.Log.d("TheBlank", "x-stream-header (base64): $headerNonce")
+        android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
+        android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
+
+        // === Read full encrypted payload ===
+        val encryptedData = response.body.bytes()
+        android.util.Log.d(
+            "TheBlank",
+            "Total encrypted data size: ${encryptedData.size} bytes"
+        )
+
+        // === Initialize SecretStream ===
+        val secretStream = SecretStream()
+        val state = State()
+        val initResult = secretStream.initPull(state, nonce, key)
+        if (initResult != 0) {
+            throw IOException("Failed to initialize SecretStream")
+        }
+
+        android.util.Log.d("TheBlank", "SecretStream initialized")
+
+        // === Decrypt chunks sequentially ===
+        val decryptedChunks = ArrayList<ByteArray>()
+        var offset = 0
+        var chunkCount = 0
+
+        while (offset < encryptedData.size) {
+            val remaining = encryptedData.size - offset
+            val currentChunkSize = minOf(CHUNK_SIZE, remaining)
+
+            val chunk = encryptedData.copyOfRange(
+                offset,
+                offset + currentChunkSize,
+            )
+
+            chunkCount++
+            android.util.Log.d(
+                "TheBlank",
+                "Decrypting chunk $chunkCount: size=${chunk.size}, offset=$offset",
+            )
+
+            val result = secretStream.pull(state, chunk, chunk.size)
+                ?: throw IOException(
+                    "SecretStream decrypt failed at chunk $chunkCount (offset=$offset)",
+                )
+
+            decryptedChunks.add(result.message)
+
+            offset += currentChunkSize
+        }
+
+        // === Combine decrypted chunks ===
+        val totalSize = decryptedChunks.sumOf { it.size }
+        val decryptedData = ByteArray(totalSize)
+        var pos = 0
+        for (part in decryptedChunks) {
+            part.copyInto(decryptedData, pos)
+            pos += part.size
+        }
+
+        android.util.Log.d(
+            "TheBlank",
+            "Decryption complete: chunks=${decryptedChunks.size}, totalSize=$totalSize",
+        )
+
+        // === Return decrypted image ===
+        val decryptedSource = Buffer().apply {
+            write(decryptedData)
+        }
+
+        response.newBuilder()
+            .body(
+                decryptedSource.asResponseBody(
+                    "image/jpeg".toMediaType(),
+                ),
+            )
+            .build()
+    } catch (e: Exception) {
+        android.util.Log.e("TheBlank", "Image decryption error", e)
+        throw IOException("Image decryption error: ${e.message}", e)
     }
+}
 
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
