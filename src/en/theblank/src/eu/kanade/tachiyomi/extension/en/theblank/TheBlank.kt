@@ -463,7 +463,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                 offset += frameSize
 
-                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                if (result.tag == SecretStream.TAG_FINAL.toByte()) {
                     gotFinal = true
                     break
                 }
@@ -495,6 +495,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     companion object {
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65536 + 17 // Data size + ABYTES
+        private const val CHUNK_SIZE = 65536 + 16
     }
 }
