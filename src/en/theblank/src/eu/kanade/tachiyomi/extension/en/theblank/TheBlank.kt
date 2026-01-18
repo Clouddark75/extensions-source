@@ -34,7 +34,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okhttp3.ResponseBody.Companion.asResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
@@ -456,7 +456,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 val result = secretStream.pull(state, frame, remaining)
                     ?: throw IOException("Decrypt failed at offset=$offset")
                 output.write(result.message)
-                offset += result.consumed  // Usar consumed en lugar de frameSize fijo
+                offset += result.consumed // Usar consumed en lugar de frameSize fijo
                 if (result.tag == SecretStream.TAG_FINAL.toByte()) {
                     gotFinal = true
                     break
