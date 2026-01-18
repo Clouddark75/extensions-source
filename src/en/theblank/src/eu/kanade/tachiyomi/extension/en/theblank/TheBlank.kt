@@ -420,6 +420,13 @@ class TheBlank : HttpSource(), ConfigurableSource {
         return Base64.decode(normalized, Base64.DEFAULT)
     }
 
+    private fun readExact(source: okio.Source, size: Int): ByteArray? {
+        val buffer = Buffer()
+        val read = source.read(buffer, size.toLong())
+        if (read == -1L) return null
+        return buffer.readByteArray()
+    }
+
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -439,37 +446,36 @@ class TheBlank : HttpSource(), ConfigurableSource {
             if (secretStream.initPull(state, nonce, key) != 0) {
                 throw IOException("SecretStream initPull failed")
             }
-            val rawResponse = response.newBuilder()
+            val raw = response.newBuilder()
                 .removeHeader("Content-Encoding")
                 .removeHeader("Content-Length")
                 .build()
-            val source = rawResponse.body.source()
+            val source = raw.body.source()
             val decryptedChunks = ArrayList<ByteArray>()
             var chunkIndex = 0
-            var receivedFinal = false
-            while (!source.exhausted()) {
-                val encrypted = source.readByteArray(CHUNK_SIZE.toLong())
-                if (encrypted.isEmpty()) break
+            var gotFinal = false
+            while (true) {
+                val encrypted = readExact(source, CHUNK_SIZE) ?: break
                 chunkIndex++
                 val result = secretStream.pull(state, encrypted, encrypted.size)
                     ?: throw IOException("Decrypt failed at chunk $chunkIndex")
                 decryptedChunks.add(result.message)
                 if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    receivedFinal = true
+                    gotFinal = true
                     break
                 }
             }
-            if (!receivedFinal) {
+            if (!gotFinal) {
                 throw IOException("SecretStream did not receive TAG_FINAL")
             }
-            val totalSize = decryptedChunks.sumOf { it.size }
-            val decryptedData = ByteArray(totalSize)
+            val total = decryptedChunks.sumOf { it.size }
+            val output = ByteArray(total)
             var pos = 0
             for (part in decryptedChunks) {
-                part.copyInto(decryptedData, pos)
+                part.copyInto(output, pos)
                 pos += part.size
             }
-            val decryptedSource = Buffer().apply { write(decryptedData) }
+            val decryptedSource = Buffer().apply { write(output) }
             response.newBuilder()
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
