@@ -35,6 +35,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.security.KeyPairGenerator
@@ -451,11 +452,14 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
             while (offset < encrypted.size) {
                 val remaining = encrypted.size - offset
-                val frame = encrypted.copyOfRange(offset, encrypted.size)
-                val result = secretStream.pull(state, frame, remaining)
+                val frameSize =
+                    if (remaining > CHUNK_SIZE) CHUNK_SIZE
+                    else remaining
+                val frame = encrypted.copyOfRange(offset, offset + frameSize)
+                val result = secretStream.pull(state, frame, frameSize)
                     ?: throw IOException("Decrypt failed at offset=$offset")
                 output.write(result.message)
-                offset += result.consumed // Usar consumed en lugar de frameSize fijo
+                offset += frameSize
                 if (result.tag == SecretStream.TAG_FINAL.toByte()) {
                     gotFinal = true
                     break
@@ -488,6 +492,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     companion object {
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65536 + 16
+        private const val CHUNK_SIZE = 65536 + 17
     }
 }
