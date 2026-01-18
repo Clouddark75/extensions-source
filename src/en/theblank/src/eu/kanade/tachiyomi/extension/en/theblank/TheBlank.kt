@@ -429,25 +429,16 @@ class TheBlank : HttpSource(), ConfigurableSource {
         val headerNonce = response.header("x-stream-header")
             ?: return response
         return try {
-            // === Decode SecretStream header ===
             val nonce = decodeUrlSafeBase64(headerNonce)
-            if (nonce.size != 24) {
-                throw IOException("Invalid nonce size: ${nonce.size}")
-            }
-            // === Derive key ===
+            require(nonce.size == 24)
             val key = MessageDigest.getInstance("SHA-256")
                 .digest(fragment.toByteArray(Charsets.UTF_8))
-            if (key.size != 32) {
-                throw IOException("Invalid key size: ${key.size}")
-            }
-            Log.d("TheBlank", "SecretStream init OK")
-            // === Init SecretStream ===
+            require(key.size == 32)
             val secretStream = SecretStream()
             val state = State()
             if (secretStream.initPull(state, nonce, key) != 0) {
                 throw IOException("SecretStream initPull failed")
             }
-            // === Prepare streaming source ===
             val rawResponse = response.newBuilder()
                 .removeHeader("Content-Encoding")
                 .removeHeader("Content-Length")
@@ -457,21 +448,13 @@ class TheBlank : HttpSource(), ConfigurableSource {
             val decryptedChunks = ArrayList<ByteArray>()
             var chunkIndex = 0
             var reachedFinal = false
-            while (!source.exhausted() && !reachedFinal) {
-                val read = source.read(buffer, CHUNK_SIZE.toLong())
-                if (read == -1L) {
-                    break
-                }
+            while (!source.exhausted()) {
+                source.read(buffer, CHUNK_SIZE.toLong())
                 while (buffer.size >= CHUNK_SIZE) {
-                    val encryptedChunk = buffer.readByteArray(CHUNK_SIZE.toLong())
+                    val encrypted = buffer.readByteArray(CHUNK_SIZE.toLong())
                     chunkIndex++
-                    val result = secretStream.pull(
-                        state,
-                        encryptedChunk,
-                        encryptedChunk.size,
-                    ) ?: throw IOException(
-                        "SecretStream decrypt failed at chunk $chunkIndex",
-                    )
+                    val result = secretStream.pull(state, encrypted, encrypted.size)
+                        ?: throw IOException("Decrypt failed at chunk $chunkIndex")
                     decryptedChunks.add(result.message)
                     if (result.tag.toInt() == SecretStream.TAG_FINAL) {
                         reachedFinal = true
@@ -480,10 +463,21 @@ class TheBlank : HttpSource(), ConfigurableSource {
                     }
                 }
             }
+            // Procesar el último chunk restante (MENOR a CHUNK_SIZE)
+            if (!reachedFinal && buffer.size > 0) {
+                chunkIndex++
+                val finalChunk = buffer.readByteArray()
+                val result = secretStream.pull(state, finalChunk, finalChunk.size)
+                    ?: throw IOException("Decrypt failed at final chunk")
+                decryptedChunks.add(result.message)
+                if (result.tag.toInt() != SecretStream.TAG_FINAL) {
+                    throw IOException("SecretStream did not receive TAG_FINAL")
+                }
+                reachedFinal = true
+            }
             if (!reachedFinal) {
                 throw IOException("SecretStream did not receive TAG_FINAL")
             }
-            // === Combine decrypted data ===
             val totalSize = decryptedChunks.sumOf { it.size }
             val decryptedData = ByteArray(totalSize)
             var pos = 0
@@ -491,19 +485,9 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 part.copyInto(decryptedData, pos)
                 pos += part.size
             }
-            Log.d(
-                "TheBlank",
-                "Image decrypted: chunks=${decryptedChunks.size}, size=$totalSize",
-            )
-            val decryptedSource = Buffer().apply {
-                write(decryptedData)
-            }
+            val decryptedSource = Buffer().apply { write(decryptedData) }
             response.newBuilder()
-                .body(
-                    decryptedSource.asResponseBody(
-                        "image/jpeg".toMediaType(),
-                    ),
-                )
+                .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
         } catch (e: Exception) {
             Log.e("TheBlank", "Image decryption error", e)
