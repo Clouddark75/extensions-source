@@ -477,11 +477,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                     // Read exactly one encrypted chunk
                     val encryptedChunkSize = CHUNK_SIZE.toLong()
-                    
+
                     // Try to ensure we have enough data for a full chunk
                     // request() returns false if source is exhausted
                     val hasFullChunk = networkSource.request(encryptedChunkSize)
-                    
+
                     if (!hasFullChunk) {
                         // Not enough data for a full chunk - this might be the last chunk
                         // Check if we have at least ABYTES (minimum valid encrypted chunk)
