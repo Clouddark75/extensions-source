@@ -448,101 +448,69 @@ class TheBlank : HttpSource(), ConfigurableSource {
             android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
             android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
-            val networkSource = response.body.source()
+            // Read the entire encrypted stream into memory first
+            val encryptedData = response.body.bytes()
+            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
 
-            // CRITICAL: Each image needs its own decryption state
-            // Creating these here ensures thread-safety for parallel downloads
+            // Initialize decryption state
             val secretStream = SecretStream()
             val state = State()
-
-            // Initialize the decryption state immediately
             val initResult = secretStream.initPull(state, nonce, key)
             if (initResult != 0) {
                 throw IOException("Failed to initialize decryption stream")
             }
             android.util.Log.d("TheBlank", "Stream initialized successfully")
 
-            val decryptedSource = object : okio.Source {
-                private val decryptedBuffer = Buffer()
-                private var isFinished = false
-                private var chunkCount = 0
+            // Decrypt all chunks
+            val decryptedChunks = mutableListOf<ByteArray>()
+            var offset = 0
+            var chunkCount = 0
+            val chunkSize = CHUNK_SIZE
 
-                override fun read(sink: Buffer, byteCount: Long): Long {
-                    // Return data from buffer if available
-                    if (decryptedBuffer.size > 0L) {
-                        return decryptedBuffer.read(sink, byteCount)
-                    }
+            while (offset < encryptedData.size) {
+                // Calculate this chunk's size (might be smaller for the last chunk)
+                val remainingBytes = encryptedData.size - offset
+                val currentChunkSize = minOf(chunkSize, remainingBytes)
 
-                    // If finished and buffer is empty, we're done
-                    if (isFinished) return -1
+                // Extract the chunk
+                val chunk = encryptedData.copyOfRange(offset, offset + currentChunkSize)
 
-                    // Try to read exactly CHUNK_SIZE bytes for a full encrypted chunk
-                    val encryptedChunkSize = CHUNK_SIZE.toLong()
+                chunkCount++
+                android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
 
-                    // First, check if we can get a full chunk
-                    if (networkSource.request(encryptedChunkSize)) {
-                        // We have at least a full chunk available, read it
-                        val encryptedData = networkSource.readByteArray(encryptedChunkSize)
-
-                        chunkCount++
-                        android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${encryptedData.size} bytes (full chunk)")
-
-                        val result = secretStream.pull(state, encryptedData, encryptedData.size)
-                        if (result == null) {
-                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${encryptedData.size})")
-                            throw IOException("Decryption failed for chunk $chunkCount")
-                        }
-
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
-                        decryptedBuffer.write(result.message)
-
-                        if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
-                            isFinished = true
-                        }
-                    } else {
-                        // Can't get a full chunk - read whatever is left (final chunk)
-                        if (!networkSource.request(ABYTES.toLong())) {
-                            // Not even enough for minimum encrypted chunk
-                            isFinished = true
-                            return -1
-                        }
-
-                        val availableBytes = networkSource.buffer.size
-                        if (availableBytes == 0L) {
-                            isFinished = true
-                            return -1
-                        }
-
-                        val encryptedData = networkSource.readByteArray(availableBytes)
-
-                        chunkCount++
-                        android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${encryptedData.size} bytes (final chunk)")
-
-                        val result = secretStream.pull(state, encryptedData, encryptedData.size)
-                        if (result == null) {
-                            android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${encryptedData.size})")
-                            throw IOException("Decryption failed for chunk $chunkCount")
-                        }
-
-                        android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
-                        decryptedBuffer.write(result.message)
-
-                        if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                            android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
-                        }
-
-                        isFinished = true
-                    }
-
-                    // Return data from buffer
-                    return decryptedBuffer.read(sink, byteCount)
+                // Decrypt the chunk
+                val result = secretStream.pull(state, chunk, chunk.size)
+                if (result == null) {
+                    android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${chunk.size})")
+                    throw IOException("Decryption failed for chunk $chunkCount at offset $offset")
                 }
 
-                override fun timeout(): Timeout = networkSource.timeout()
+                android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=${result.tag}")
+                decryptedChunks.add(result.message)
 
-                override fun close() = networkSource.close()
-            }.buffer()
+                // Move to next chunk
+                offset += currentChunkSize
+
+                // Check if this was the final chunk
+                if (result.tag.toInt() == SecretStream.TAG_FINAL) {
+                    android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
+                    break
+                }
+            }
+
+            // Combine all decrypted chunks
+            val totalSize = decryptedChunks.sumOf { it.size }
+            val decryptedData = ByteArray(totalSize)
+            var position = 0
+            for (chunk in decryptedChunks) {
+                chunk.copyInto(decryptedData, position)
+                position += chunk.size
+            }
+
+            android.util.Log.d("TheBlank", "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
+
+            // Create a new response with the decrypted data
+            val decryptedSource = Buffer().apply { write(decryptedData) }
 
             response.newBuilder()
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
