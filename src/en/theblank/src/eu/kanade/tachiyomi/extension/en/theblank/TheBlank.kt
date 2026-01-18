@@ -67,7 +67,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 chain.proceed(request)
             }
         }
-        .addInterceptor(::imageInterceptor)
+        .addNetworkInterceptor(::imageInterceptor)
         .rateLimit(1)
         .build()
 
