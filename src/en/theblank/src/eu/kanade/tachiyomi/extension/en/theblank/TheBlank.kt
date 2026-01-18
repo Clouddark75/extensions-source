@@ -420,13 +420,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
         return Base64.decode(normalized, Base64.DEFAULT)
     }
 
-    private fun readExact(source: okio.Source, size: Int): ByteArray? {
-        val buffer = Buffer()
-        val read = source.read(buffer, size.toLong())
-        if (read == -1L) return null
-        return buffer.readByteArray()
-    }
-
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -446,36 +439,39 @@ class TheBlank : HttpSource(), ConfigurableSource {
             if (secretStream.initPull(state, nonce, key) != 0) {
                 throw IOException("SecretStream initPull failed")
             }
-            val raw = response.newBuilder()
-                .removeHeader("Content-Encoding")
-                .removeHeader("Content-Length")
-                .build()
-            val source = raw.body.source()
+            val encryptedData = response.body.bytes()
             val decryptedChunks = ArrayList<ByteArray>()
+            var offset = 0
             var chunkIndex = 0
-            var gotFinal = false
-            while (true) {
-                val encrypted = readExact(source, CHUNK_SIZE) ?: break
+            var receivedFinal = false
+            while (offset < encryptedData.size) {
+                val remaining = encryptedData.size - offset
+                val chunkSize = minOf(CHUNK_SIZE, remaining)
+                val chunk = encryptedData.copyOfRange(
+                    offset,
+                    offset + chunkSize,
+                )
                 chunkIndex++
-                val result = secretStream.pull(state, encrypted, encrypted.size)
-                    ?: throw IOException("Decrypt failed at chunk $chunkIndex")
+                val result = secretStream.pull(state, chunk, chunk.size)
+                    ?: throw IOException("Decrypt failed at chunk $chunkIndex (offset=$offset)")
                 decryptedChunks.add(result.message)
+                offset += chunkSize
                 if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    gotFinal = true
+                    receivedFinal = true
                     break
                 }
             }
-            if (!gotFinal) {
+            if (!receivedFinal) {
                 throw IOException("SecretStream did not receive TAG_FINAL")
             }
-            val total = decryptedChunks.sumOf { it.size }
-            val output = ByteArray(total)
+            val totalSize = decryptedChunks.sumOf { it.size }
+            val decryptedData = ByteArray(totalSize)
             var pos = 0
             for (part in decryptedChunks) {
-                part.copyInto(output, pos)
+                part.copyInto(decryptedData, pos)
                 pos += part.size
             }
-            val decryptedSource = Buffer().apply { write(output) }
+            val decryptedSource = Buffer().apply { write(decryptedData) }
             response.newBuilder()
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
@@ -492,6 +488,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
     companion object {
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65536 + 16 // Data size + ABYTES
+        private const val CHUNK_SIZE = 65536 + 17 // Data size + ABYTES
     }
 }
