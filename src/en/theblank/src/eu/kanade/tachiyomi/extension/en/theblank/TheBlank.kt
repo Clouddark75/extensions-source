@@ -428,52 +428,59 @@ class TheBlank : HttpSource(), ConfigurableSource {
             ?: return response
         val headerNonce = response.header("x-stream-header")
             ?: return response
+
+        val body = response.body ?: return response
+        val encrypted = body.bytes()
+
         return try {
             val nonce = decodeUrlSafeBase64(headerNonce)
             require(nonce.size == 24)
             val key = MessageDigest.getInstance("SHA-256")
                 .digest(fragment.toByteArray(Charsets.UTF_8))
             require(key.size == 32)
+
             val secretStream = SecretStream()
             val state = State()
+
             if (secretStream.initPull(state, nonce, key) != 0) {
                 throw IOException("SecretStream initPull failed")
             }
-            val encryptedData = response.body.bytes()
-            val decryptedChunks = ArrayList<ByteArray>()
+
             var offset = 0
-            var chunkIndex = 0
-            var receivedFinal = false
-            while (offset < encryptedData.size) {
-                val remaining = encryptedData.size - offset
-                val chunkSize = minOf(CHUNK_SIZE, remaining)
-                val chunk = encryptedData.copyOfRange(
-                    offset,
-                    offset + chunkSize,
-                )
-                chunkIndex++
-                val result = secretStream.pull(state, chunk, chunk.size)
-                    ?: throw IOException("Decrypt failed at chunk $chunkIndex (offset=$offset)")
-                decryptedChunks.add(result.message)
-                offset += chunkSize
+            val output = java.io.ByteArrayOutputStream()
+            var gotFinal = false
+
+            while (offset < encrypted.size) {
+                val remaining = encrypted.size - offset
+                val frameSize = minOf(CHUNK_SIZE, remaining)
+
+                val frame = encrypted.copyOfRange(offset, offset + frameSize)
+
+                val result = secretStream.pull(state, frame, frame.size)
+                    ?: throw IOException("Decrypt failed at offset=$offset")
+
+                output.write(result.message)
+
+                offset += frameSize
+
                 if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    receivedFinal = true
+                    gotFinal = true
                     break
                 }
             }
-            if (!receivedFinal) {
+
+            if (!gotFinal) {
                 throw IOException("SecretStream did not receive TAG_FINAL")
             }
-            val totalSize = decryptedChunks.sumOf { it.size }
-            val decryptedData = ByteArray(totalSize)
-            var pos = 0
-            for (part in decryptedChunks) {
-                part.copyInto(decryptedData, pos)
-                pos += part.size
-            }
-            val decryptedSource = Buffer().apply { write(decryptedData) }
+
+            val decryptedBytes = output.toByteArray()
+
             response.newBuilder()
-                .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
+                .body(
+                    decryptedBytes.toResponseBody(
+                        body.contentType(),
+                    ),
+                )
                 .build()
         } catch (e: Exception) {
             Log.e("TheBlank", "Image decryption error", e)
