@@ -452,17 +452,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
             while (offset < encrypted.size) {
                 val remaining = encrypted.size - offset
-                val frameSize = minOf(CHUNK_SIZE, remaining)
-
-                val frame = encrypted.copyOfRange(offset, offset + frameSize)
-
-                val result = secretStream.pull(state, frame, frame.size)
+                val frame = encrypted.copyOfRange(offset, encrypted.size)
+                val result = secretStream.pull(state, frame, remaining)
                     ?: throw IOException("Decrypt failed at offset=$offset")
-
                 output.write(result.message)
-
-                offset += frameSize
-
+                offset += result.consumed  // Usar consumed en lugar de frameSize fijo
                 if (result.tag == SecretStream.TAG_FINAL.toByte()) {
                     gotFinal = true
                     break
