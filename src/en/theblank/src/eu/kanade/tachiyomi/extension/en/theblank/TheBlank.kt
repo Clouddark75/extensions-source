@@ -38,6 +38,7 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.PrivateKey
@@ -456,10 +457,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 "Key (hex): ${key.joinToString("") { "%02x".format(it) }}",
             )
 
-            val encryptedData = response.body.bytes()
-
-            Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
-
             val secretStream = SecretStream()
             val state = State()
 
@@ -471,29 +468,32 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
             Log.d("TheBlank", "SecretStream initialized")
 
+            val source = response.body.source()
             val decryptedChunks = ArrayList<ByteArray>()
-            var offset = 0
             var chunkCount = 0
 
-            while (offset < encryptedData.size) {
-                val remaining = encryptedData.size - offset
-                val currentChunkSize = minOf(CHUNK_SIZE, remaining)
-                val chunk = encryptedData.copyOfRange(offset, offset + currentChunkSize)
+            while (!source.exhausted()) {
+                val encryptedChunk = source.readByteArray(CHUNK_SIZE.toLong())
+                if (encryptedChunk.isEmpty()) {
+                    break
+                }
 
                 chunkCount++
 
                 Log.d(
                     "TheBlank",
-                    "Decrypting chunk $chunkCount: size=${chunk.size}, offset=$offset",
+                    "Decrypting chunk $chunkCount: size=${encryptedChunk.size}",
                 )
 
-                val result = secretStream.pull(state, chunk, chunk.size)
-                    ?: throw IOException(
-                        "SecretStream decrypt failed at chunk $chunkCount (offset=$offset)",
-                    )
+                val result = secretStream.pull(state, encryptedChunk, encryptedChunk.size)
+                    ?: throw IOException("SecretStream decrypt failed at chunk $chunkCount")
 
                 decryptedChunks.add(result.message)
-                offset += currentChunkSize
+
+                // Termina cuando SecretStream indica el tag final
+                if (result.tag == SecretStream.TAG_FINAL) {
+                    break
+                }
             }
 
             val totalSize = decryptedChunks.sumOf { it.size }
