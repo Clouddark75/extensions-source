@@ -452,15 +452,15 @@ class TheBlank : HttpSource(), ConfigurableSource {
             val source = response.body.source()
             var totalRead = 0L
             val bufferSize = 8192L
-            
+
             while (true) {
                 val bytesRead = source.read(encryptedBuffer, bufferSize)
                 if (bytesRead == -1L) break
                 totalRead += bytesRead
             }
-            
+
             val encryptedData = encryptedBuffer.readByteArray()
-            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes (read in ${totalRead} bytes)")
+            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes (read in $totalRead bytes)")
 
             // Initialize decryption state
             val secretStream = SecretStream()
