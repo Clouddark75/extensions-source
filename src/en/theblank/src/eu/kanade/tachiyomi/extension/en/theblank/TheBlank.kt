@@ -38,7 +38,6 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
 import java.io.IOException
 import java.nio.charset.StandardCharsets
-import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.PrivateKey
