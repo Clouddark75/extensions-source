@@ -60,24 +60,21 @@ public class SecretStream {
             return null;
         }
 
-        // The last 16 bytes are the MAC
-        int macOffset = inlen - 16;
-        byte[] storedMac = Arrays.copyOfRange(in, macOffset, inlen);
-        
-        // Everything before the MAC is ciphertext (including encrypted tag)
-        int clen = macOffset;
-        byte[] c = Arrays.copyOfRange(in, 0, clen);
+        // mlen_p = inlen - ABYTES = inlen - 17, but we need message length without tag
+        // So: mlen = inlen - 16 (MAC) - 1 (tag) = inlen - 17
+        // But the ciphertext includes the tag, so clen = inlen - 16
+        long mlen_max = inlen - 16; // This includes the encrypted tag byte
         
         android.util.Log.d("SecretStream", "Input length: " + inlen);
-        android.util.Log.d("SecretStream", "Ciphertext length: " + clen);
+        android.util.Log.d("SecretStream", "Ciphertext length (with tag): " + mlen_max);
         
         // Initialize Poly1305
         Poly1305.State poly1305State = new Poly1305.State();
         byte[] block = new byte[64];
         byte[] slen = new byte[8];
-        byte[] computedMac = new byte[16];
+        byte[] mac = new byte[16];
 
-        // Generate Poly1305 key from ChaCha20 (counter = 0)
+        // Generate Poly1305 key from ChaCha20 block 0
         ChaCha20.streamIETF(block, 64, state.nonce, state.k);
         Poly1305.init(poly1305State, block);
         Arrays.fill(block, (byte) 0);
@@ -91,58 +88,61 @@ public class SecretStream {
             }
         }
 
-        // Process ciphertext
-        Poly1305.update(poly1305State, c, 0, clen);
+        // Put encrypted tag in block[0]
+        block[0] = in[0];
         
-        // Padding for ciphertext
-        int padlen = (16 - (clen % 16)) % 16;
+        // Authenticate the 64-byte block (with encrypted tag in position 0, rest zeros)
+        Poly1305.update(poly1305State, block, 0, 64);
+
+        // Authenticate remaining ciphertext (everything after first byte, before MAC)
+        long remaining = mlen_max - 1;
+        if (remaining > 0) {
+            Poly1305.update(poly1305State, in, 1, (int)remaining);
+        }
+        
+        // Padding for (64 + remaining)
+        long totalLen = 64 + remaining;
+        int padlen = (int) ((16 - (totalLen % 16)) % 16);
         if (padlen > 0) {
             Poly1305.update(poly1305State, PAD0, 0, padlen);
         }
 
-        // Add lengths (AD length, then ciphertext length)
+        // Add lengths: AD length, then ciphertext length
         store64_le(slen, 0, ad != null ? adlen : 0);
         Poly1305.update(poly1305State, slen, 0, 8);
-        store64_le(slen, 0, clen);
+        store64_le(slen, 0, totalLen);
         Poly1305.update(poly1305State, slen, 0, 8);
 
         // Finalize MAC
-        Poly1305.finalizeMAC(poly1305State, computedMac);
+        Poly1305.finalizeMAC(poly1305State, mac);
+
+        // Extract stored MAC (last 16 bytes)
+        byte[] storedMac = Arrays.copyOfRange(in, (int)mlen_max, inlen);
 
         // Debug output
-        StringBuilder computedStr = new StringBuilder();
-        for (byte b : computedMac) {
-            computedStr.append(String.format("%02x ", b));
-        }
-        android.util.Log.d("SecretStream", "Computed MAC: " + computedStr.toString().trim());
-
-        StringBuilder storedStr = new StringBuilder();
-        for (byte b : storedMac) {
-            storedStr.append(String.format("%02x ", b));
-        }
-        android.util.Log.d("SecretStream", "Stored MAC:   " + storedStr.toString().trim());
+        android.util.Log.d("SecretStream", "Computed MAC: " + bytesToHex(mac));
+        android.util.Log.d("SecretStream", "Stored MAC:   " + bytesToHex(storedMac));
 
         // Verify MAC
-        if (!constantTimeCompare(computedMac, storedMac)) {
+        if (!constantTimeCompare(mac, storedMac)) {
             android.util.Log.e("SecretStream", "MAC verification FAILED!");
-            Arrays.fill(computedMac, (byte) 0);
             return null;
         }
         
         android.util.Log.d("SecretStream", "MAC verification SUCCESS!");
 
-        // Decrypt ciphertext (counter = 1)
-        byte[] out = new byte[clen];
-        ChaCha20.streamIETFXorIC(out, c, clen, state.nonce, 1, state.k);
+        // Decrypt the ciphertext (tag + message) using counter = 1
+        byte[] out = new byte[(int)mlen_max];
+        ChaCha20.streamIETFXorIC(out, in, (int)mlen_max, state.nonce, 1, state.k);
 
-        // First byte is the tag
+        // First byte is the decrypted tag
         byte tag = out[0];
         android.util.Log.d("SecretStream", "Decrypted tag: 0x" + String.format("%02x", tag));
         
-        // Rest is the actual message
-        byte[] m = Arrays.copyOfRange(out, 1, clen);
+        // Rest is the actual message (everything after the tag)
+        byte[] m = Arrays.copyOfRange(out, 1, (int)mlen_max);
 
-        // XOR nonce with MAC (for key derivation)
+        // XOR inonce with MAC
         for (int i = 0; i < 8; i++) {
             state.nonce[4 + i] ^= storedMac[i];
         }
@@ -157,6 +157,14 @@ public class SecretStream {
         }
 
         return new PullResult(m, tag);
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x ", b));
+        }
+        return sb.toString().trim();
     }
 
     // _crypto_secretstream_xchacha20poly1305_counter_reset
