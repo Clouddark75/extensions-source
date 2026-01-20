@@ -487,11 +487,11 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                 chunkCount++
                 android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
-                
+
                 // Log first few bytes of the chunk for debugging
                 val preview = chunk.take(32).joinToString(" ") { "%02x".format(it) }
                 android.util.Log.d("TheBlank", "Chunk $chunkCount first 32 bytes: $preview")
-                
+
                 if (chunk.size >= 17) {
                     val macPreview = chunk.takeLast(16).joinToString(" ") { "%02x".format(it) }
                     android.util.Log.d("TheBlank", "Chunk $chunkCount MAC (last 16 bytes): $macPreview")
