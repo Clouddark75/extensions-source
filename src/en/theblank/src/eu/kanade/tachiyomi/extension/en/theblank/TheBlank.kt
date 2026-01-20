@@ -435,6 +435,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
             }
 
+            // CRITICAL: Hash the session key (fragment) with SHA-256 to get the actual encryption key
             val key = MessageDigest.getInstance("SHA-256")
                 .digest(fragment.toByteArray(Charsets.UTF_8))
             if (key.size != 32) {
@@ -446,8 +447,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
             android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
-            // Read the entire encrypted stream into memory first
-            // Force complete download by reading through the source
+            // Read the entire encrypted stream into memory
             val encryptedBuffer = Buffer()
             val source = response.body.source()
             var totalRead = 0L
@@ -460,7 +460,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             }
 
             val encryptedData = encryptedBuffer.readByteArray()
-            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes (read in $totalRead bytes)")
+            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
 
             // Initialize decryption state
             val secretStream = SecretStream()
