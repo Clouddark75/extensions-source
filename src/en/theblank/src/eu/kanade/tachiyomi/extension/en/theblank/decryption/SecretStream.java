@@ -177,7 +177,7 @@ public class SecretStream {
         byte[] m = new byte[(int) mlen];
         if (mlen > 0) {
             byte[] c = Arrays.copyOfRange(in, 1, 1 + (int) mlen);
-            ChaCha20.streamIETFXorIC(m, c, (int) mlen, state.nonce, 2, state.k);
+            ChaCha20.streamIETFXorIC(m, c, (int) mlen, chacha_nonce, initialCounter + 2, state.k);
         }
 
         // XOR inonce con MAC
@@ -212,8 +212,14 @@ public class SecretStream {
         System.arraycopy(state.k, 0, newKeyAndInonce, 0, 32);
         System.arraycopy(state.nonce, 4, newKeyAndInonce, 32, 8);
 
-        // XOR with ChaCha20 stream
-        ChaCha20.streamIETFXorIC(newKeyAndInonce, newKeyAndInonce, 40, state.nonce, 0, state.k);
+        // XOR with ChaCha20 stream usando el counter correcto
+        int counter = (state.nonce[0] & 0xFF) |
+                     ((state.nonce[1] & 0xFF) << 8) |
+                     ((state.nonce[2] & 0xFF) << 16) |
+                     ((state.nonce[3] & 0xFF) << 24);
+        
+        byte[] chacha_nonce = Arrays.copyOfRange(state.nonce, 4, 12);
+        ChaCha20.streamIETFXorIC(newKeyAndInonce, newKeyAndInonce, 40, chacha_nonce, counter, state.k);
 
         // Update state
         System.arraycopy(newKeyAndInonce, 0, state.k, 0, 32);
