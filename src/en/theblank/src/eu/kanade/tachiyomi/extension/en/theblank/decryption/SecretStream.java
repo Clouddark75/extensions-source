@@ -65,20 +65,20 @@ public class SecretStream {
         for (byte b : state.nonce) {
             nonceStr.append(String.format("%02x ", b));
         }
-        android.util.Log.d("SecretStream", "Nonce: " + nonceStr.toString().trim());
+        android.util.Log.e("SecretStream", "Nonce: " + nonceStr.toString().trim());
         
         StringBuilder keyStr = new StringBuilder();
         for (int i = 0; i < 16; i++) {
             keyStr.append(String.format("%02x ", state.k[i]));
         }
-        android.util.Log.d("SecretStream", "Key (first 16): " + keyStr.toString().trim());
+        android.util.Log.e("SecretStream", "Key (first 16): " + keyStr.toString().trim());
 
         // Extraer componentes
         byte encryptedTag = in[0];
         long mlen = inlen - 1 - 16; // Resto después de quitar tag y MAC
         
-        android.util.Log.d("SecretStream", "Encrypted tag byte: 0x" + String.format("%02x", encryptedTag));
-        android.util.Log.d("SecretStream", "Message length: " + mlen);
+        android.util.Log.e("SecretStream", "Encrypted tag byte: 0x" + String.format("%02x", encryptedTag));
+        android.util.Log.e("SecretStream", "Message length: " + mlen);
         
         // Inicializar Poly1305
         Poly1305.State poly1305State = new Poly1305.State();
@@ -137,7 +137,7 @@ public class SecretStream {
         for (byte b : mac) {
             computedMacStr.append(String.format("%02x ", b));
         }
-        android.util.Log.d("SecretStream", "Computed MAC: " + computedMacStr.toString().trim());
+        android.util.Log.e("SecretStream", "Computed MAC: " + computedMacStr.toString().trim());
 
         // Verificar MAC (últimos 16 bytes)
         int macStart = 1 + (int) mlen;
@@ -147,7 +147,7 @@ public class SecretStream {
         for (byte b : storedMac) {
             storedMacStr.append(String.format("%02x ", b));
         }
-        android.util.Log.d("SecretStream", "Stored MAC:  " + storedMacStr.toString().trim());
+        android.util.Log.e("SecretStream", "Stored MAC:  " + storedMacStr.toString().trim());
 
         if (!constantTimeCompare(mac, storedMac)) {
             Arrays.fill(mac, (byte) 0);
@@ -155,7 +155,7 @@ public class SecretStream {
             return null; // Autenticación fallida
         }
         
-        android.util.Log.d("SecretStream", "MAC verification SUCCESS!");
+        android.util.Log.e("SecretStream", "MAC verification SUCCESS!");
 
 
         // Desencriptar mensaje
