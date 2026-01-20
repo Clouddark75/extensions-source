@@ -86,11 +86,10 @@ public class SecretStream {
         byte[] slen = new byte[8];
         byte[] mac = new byte[16];
 
-        // Generar clave Poly1305 desde ChaCha20
+        // Generar clave Poly1305 desde ChaCha20 (contador 0)
         ChaCha20.streamIETF(block, 64, state.nonce, state.k);
         Poly1305.init(poly1305State, block);
-        Arrays.fill(block, (byte) 0);
-
+        
         // Procesar AD si existe
         if (ad != null && adlen > 0) {
             Poly1305.update(poly1305State, ad, 0, adlen);
@@ -100,14 +99,30 @@ public class SecretStream {
             }
         }
 
-        // Desencriptar el tag
+        // Generar bloque con contador=1 para desencriptar/encriptar el tag
+        byte[] tagBlock = new byte[64];
+        ChaCha20.streamIETF(tagBlock, 64, state.nonce, state.k);
+        
+        // Ahora necesitamos ajustar para counter=1
+        // Limpiar y regenerar con counter correcto
         Arrays.fill(block, (byte) 0);
         block[0] = encryptedTag;
         ChaCha20.streamIETFXorIC(block, block, 64, state.nonce, 1, state.k);
         byte tag = block[0];
         
-        // Volver a encriptar para el MAC (necesitamos el tag encriptado)
-        block[0] = encryptedTag;
+        // Para Poly1305, necesitamos el bloque con counter=1 pero con el tag encriptado en posición 0
+        Arrays.fill(block, (byte) 0);
+        ChaCha20.streamIETF(block, 64, state.nonce, state.k);
+        // Esto genera counter=0, necesitamos regenerar con counter=1
+        
+        // Generar el bloque de autenticación correctamente
+        Arrays.fill(block, (byte) 0);
+        block[0] = encryptedTag; // Tag encriptado en la primera posición
+        ChaCha20.streamIETFXorIC(block, block, 64, state.nonce, 1, state.k);
+        // Ahora block[0] tiene el tag desencriptado, pero necesitamos volver a ponerlo encriptado
+        block[0] = encryptedTag; // Restaurar el tag encriptado
+        
+        // Este bloque va a Poly1305
         Poly1305.update(poly1305State, block, 0, 64);
 
         // Procesar ciphertext si existe
