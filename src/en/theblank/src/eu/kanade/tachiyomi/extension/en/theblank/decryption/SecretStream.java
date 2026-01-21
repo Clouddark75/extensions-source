@@ -2,6 +2,8 @@
  * Portions of this software are derived from libsodium.
  * Source: https://github.com/jedisct1/libsodium
  * Copyright (c) 2013-2024 Frank Denis <j at pureftpd dot org>
+ * 
+ * Based on crypto_secretstream_xchacha20poly1305.c
  */
 
 package eu.kanade.tachiyomi.extension.en.theblank.decryption;
@@ -37,10 +39,16 @@ public class SecretStream {
             return -1;
         }
 
+        // Derive subkey using HChaCha20
         Core.HCaCha20(state.k, header, key, null);
+        
+        // Reset counter to 1
         counterReset(state);
+        
+        // Copy nonce from header[16..23]
         System.arraycopy(header, 16, state.nonce, 4, 8);
 
+        // Clear padding
         for (int i = 0; i < state._pad.length; i++) {
             state._pad[i] = 0;
         }
@@ -54,93 +62,111 @@ public class SecretStream {
     }
 
     public PullResult pull(State state, byte[] in, int inlen, byte[] ad, int adlen) {
-        // Minimum: 0 bytes message + 1 byte tag + 16 bytes MAC = 17 bytes
-        if (inlen < 17) {
+        // Check minimum size
+        if (inlen < ABYTES) {
             android.util.Log.e("SecretStream", "Input too short: " + inlen + " bytes");
             return null;
         }
 
-        // mlen_p = inlen - ABYTES = inlen - 17, but we need message length without tag
-        // So: mlen = inlen - 16 (MAC) - 1 (tag) = inlen - 17
-        // But the ciphertext includes the tag, so clen = inlen - 16
-        long mlen_max = inlen - 16; // This includes the encrypted tag byte
+        // mlen = length without MAC
+        long mlen = inlen - 16;
         
         android.util.Log.d("SecretStream", "Input length: " + inlen);
-        android.util.Log.d("SecretStream", "Ciphertext length (with tag): " + mlen_max);
+        android.util.Log.d("SecretStream", "Message+tag length: " + mlen);
         
-        // Initialize Poly1305
+        // Compute Poly1305 MAC
         Poly1305.State poly1305State = new Poly1305.State();
         byte[] block = new byte[64];
         byte[] slen = new byte[8];
         byte[] mac = new byte[16];
 
-        // Generate Poly1305 key from ChaCha20 block 0
-        ChaCha20.streamIETF(block, 64, state.nonce, state.k);
-        Poly1305.init(poly1305State, block);
+        // Generate Poly1305 key using ChaCha20 with counter=0
         Arrays.fill(block, (byte) 0);
-
-        // Process AD if exists
+        ChaCha20.streamIETF(block, 64, state.nonce, state.k);
+        
+        // Debug: Show the Poly1305 key
+        android.util.Log.d("SecretStream", "Poly1305 key: " + bytesToHex(Arrays.copyOf(block, 32)));
+        
+        Poly1305.init(poly1305State, block);
+        
+        // Process additional data if present
         if (ad != null && adlen > 0) {
             Poly1305.update(poly1305State, ad, 0, adlen);
-            int padlen = (16 - (adlen % 16)) % 16;
+            int padlen = (16 - (adlen & 15)) & 15;
             if (padlen > 0) {
                 Poly1305.update(poly1305State, PAD0, 0, padlen);
             }
         }
 
-        // Put encrypted tag in block[0]
-        block[0] = in[0];
+        // Create the authentication block
+        // The block contains the encrypted tag byte followed by zeros
+        Arrays.fill(block, (byte) 0);
+        block[0] = in[0]; // Encrypted tag byte
         
-        // Authenticate the 64-byte block (with encrypted tag in position 0, rest zeros)
+        android.util.Log.d("SecretStream", "Auth block (first 32 bytes): " + bytesToHex(Arrays.copyOf(block, 32)));
+        
+        // Authenticate the block
         Poly1305.update(poly1305State, block, 0, 64);
 
-        // Authenticate remaining ciphertext (everything after first byte, before MAC)
-        long remaining = mlen_max - 1;
-        if (remaining > 0) {
-            Poly1305.update(poly1305State, in, 1, (int)remaining);
+        // Authenticate remaining ciphertext (if any)
+        if (mlen > 1) {
+            Poly1305.update(poly1305State, in, 1, (int) mlen - 1);
+            android.util.Log.d("SecretStream", "Authenticating " + (mlen - 1) + " bytes of ciphertext");
+            android.util.Log.d("SecretStream", "First 32 bytes of ciphertext: " + bytesToHex(Arrays.copyOfRange(in, 1, Math.min(33, (int) mlen))));
         }
-        
-        // Padding for (64 + remaining)
-        long totalLen = 64 + remaining;
-        int padlen = (int) ((16 - (totalLen % 16)) % 16);
+
+        // Padding
+        long totalLen = 64 + (mlen - 1);
+        int padlen = (int) ((16 - (totalLen & 15)) & 15);
+        android.util.Log.d("SecretStream", "Total auth length: " + totalLen + ", padding: " + padlen);
         if (padlen > 0) {
             Poly1305.update(poly1305State, PAD0, 0, padlen);
         }
 
-        // Add lengths: AD length, then ciphertext length
+        // Lengths
         store64_le(slen, 0, ad != null ? adlen : 0);
         Poly1305.update(poly1305State, slen, 0, 8);
+        android.util.Log.d("SecretStream", "AD length: " + bytesToHex(slen));
+        
         store64_le(slen, 0, totalLen);
         Poly1305.update(poly1305State, slen, 0, 8);
+        android.util.Log.d("SecretStream", "Total length: " + bytesToHex(slen));
 
         // Finalize MAC
         Poly1305.finalizeMAC(poly1305State, mac);
 
-        // Extract stored MAC (last 16 bytes)
-        byte[] storedMac = Arrays.copyOfRange(in, (int)mlen_max, inlen);
+        // Get stored MAC
+        byte[] storedMac = Arrays.copyOfRange(in, (int) mlen, (int) mlen + 16);
 
-        // Debug output
+        // Debug
         android.util.Log.d("SecretStream", "Computed MAC: " + bytesToHex(mac));
         android.util.Log.d("SecretStream", "Stored MAC:   " + bytesToHex(storedMac));
 
         // Verify MAC
         if (!constantTimeCompare(mac, storedMac)) {
             android.util.Log.e("SecretStream", "MAC verification FAILED!");
+            
+            // Debug: Let's check what we're authenticating
+            android.util.Log.d("SecretStream", "Nonce: " + bytesToHex(state.nonce));
+            android.util.Log.d("SecretStream", "Key (first 16): " + bytesToHex(Arrays.copyOf(state.k, 16)));
+            android.util.Log.d("SecretStream", "Encrypted tag: 0x" + String.format("%02x", in[0]));
+            
             return null;
         }
         
         android.util.Log.d("SecretStream", "MAC verification SUCCESS!");
 
-        // Decrypt the ciphertext (tag + message) using counter = 1
-        byte[] out = new byte[(int)mlen_max];
-        ChaCha20.streamIETFXorIC(out, in, (int)mlen_max, state.nonce, 1, state.k);
+        // Decrypt using counter=1
+        byte[] out = new byte[(int) mlen];
+        ChaCha20.streamIETFXorIC(out, in, (int) mlen, state.nonce, 1, state.k);
 
-        // First byte is the decrypted tag
+        // Extract tag
         byte tag = out[0];
         android.util.Log.d("SecretStream", "Decrypted tag: 0x" + String.format("%02x", tag));
         
-        // Rest is the actual message (everything after the tag)
-        byte[] m = Arrays.copyOfRange(out, 1, (int)mlen_max);
+        // Extract message
+        byte[] m = new byte[(int) mlen - 1];
+        System.arraycopy(out, 1, m, 0, (int) mlen - 1);
 
         // XOR inonce with MAC
         for (int i = 0; i < 8; i++) {
@@ -167,26 +193,21 @@ public class SecretStream {
         return sb.toString().trim();
     }
 
-    // _crypto_secretstream_xchacha20poly1305_counter_reset
     private void counterReset(State state) {
-        for (int i = 0; i < 4; i++) {
+        state.nonce[0] = 1;
+        for (int i = 1; i < 4; i++) {
             state.nonce[i] = 0;
         }
-        state.nonce[0] = 1;
     }
 
-    // crypto_secretstream_xchacha20poly1305_rekey
     private void rekey(State state) {
-        byte[] newKeyAndInonce = new byte[32 + 8];
+        byte[] newKeyAndInonce = new byte[40];
 
-        // Copy current key and inonce
         System.arraycopy(state.k, 0, newKeyAndInonce, 0, 32);
         System.arraycopy(state.nonce, 4, newKeyAndInonce, 32, 8);
 
-        // XOR with ChaCha20 stream (counter = 0)
         ChaCha20.streamIETFXorIC(newKeyAndInonce, newKeyAndInonce, 40, state.nonce, 0, state.k);
 
-        // Update state
         System.arraycopy(newKeyAndInonce, 0, state.k, 0, 32);
         System.arraycopy(newKeyAndInonce, 32, state.nonce, 4, 8);
 
