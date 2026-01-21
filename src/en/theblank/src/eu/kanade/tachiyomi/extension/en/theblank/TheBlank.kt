@@ -471,6 +471,45 @@ class TheBlank : HttpSource(), ConfigurableSource {
             }
             android.util.Log.d("TheBlank", "Stream initialized successfully")
 
+            // === DEBUG: DIRECT DECRYPTION TEST ===
+            android.util.Log.d("TheBlank", "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
+
+            try {
+                // Try to decrypt the first chunk directly to see what we get
+                val testChunk = encryptedData.copyOfRange(0, minOf(65552, encryptedData.size))
+                val testCiphertext = testChunk.copyOfRange(0, testChunk.size - 16)
+                
+                android.util.Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
+
+                // Try decrypting with counter=1
+                val testPlaintext = ByteArray(testCiphertext.size)
+                ChaCha20.streamIETFXorIC(
+                    testPlaintext, 
+                    testCiphertext, 
+                    testCiphertext.size,
+                    state.nonce, 
+                    1, 
+                    state.k
+                )
+
+                // Check if the first byte looks like a valid tag
+                val possibleTag = testPlaintext[0]
+                android.util.Log.d("TheBlank", "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
+                android.util.Log.d("TheBlank", "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
+
+                // If this is an image, we might see PNG or JPEG magic bytes
+                // PNG: 89 50 4E 47
+                // JPEG: FF D8 FF
+                if (testPlaintext.size > 10) {
+                    android.util.Log.d("TheBlank", "Bytes 1-10 (after tag): ${testPlaintext.slice(1..10).joinToString(" ") { "%02x".format(it) }}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TheBlank", "Direct decryption test failed", e)
+            }
+        
+            android.util.Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
+            // === END DEBUG CODE ===
+
             // Decrypt all chunks
             val decryptedChunks = mutableListOf<ByteArray>()
             var offset = 0
