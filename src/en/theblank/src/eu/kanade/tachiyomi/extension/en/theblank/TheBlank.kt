@@ -6,6 +6,7 @@ import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.extension.en.theblank.decryption.SecretStream
 import eu.kanade.tachiyomi.extension.en.theblank.decryption.State
+import eu.kanade.tachiyomi.extension.en.theblank.decryption.ChaCha20
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
@@ -24,6 +25,7 @@ import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonString
 import keiyoushi.utils.tryParse
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl
@@ -61,7 +63,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override val client = network.cloudflareClient.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
-            if (request.url.fragment == THUMBNAIL_FRAGMENT) {
+            return@addInterceptor if (request.url.fragment == THUMBNAIL_FRAGMENT) {
                 thumbnailClient.newCall(request).execute()
             } else {
                 chain.proceed(request)
@@ -215,17 +217,17 @@ class TheBlank : HttpSource(), ConfigurableSource {
     )
 
     override fun searchMangaParse(response: Response): MangasPage {
-        return if (response.request.url.queryParameter("q") != null) {
+        if (response.request.url.queryParameter("q") != null) {
             val data = response.parseAs<List<BrowseManga>>()
 
-            MangasPage(
+            return MangasPage(
                 mangas = data.map { it.toSManga(::createThumbnailUrl) },
                 hasNextPage = false,
             )
         } else {
             val data = response.parseAs<LibraryResponse>().series
 
-            MangasPage(
+            return MangasPage(
                 mangas = data.data.map { it.toSManga(::createThumbnailUrl) },
                 hasNextPage = data.meta.current < data.meta.last,
             )
@@ -420,7 +422,6 @@ class TheBlank : HttpSource(), ConfigurableSource {
         return Base64.decode(normalized, Base64.DEFAULT)
     }
 
-    @Suppress("LongMethod", "ComplexMethod")
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -444,15 +445,14 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 throw IOException("Invalid key size: ${key.size}, expected 32")
             }
 
-            Log.d("TheBlank", "Fragment (session key): $fragment")
-            Log.d("TheBlank", "Header nonce (base64): $headerNonce")
-            Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
-            Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
+            android.util.Log.d("TheBlank", "Fragment (session key): $fragment")
+            android.util.Log.d("TheBlank", "Header nonce (base64): $headerNonce")
+            android.util.Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
+            android.util.Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
             // Read the entire encrypted stream into memory
             val encryptedBuffer = Buffer()
             val source = response.body.source()
-            @Suppress("UNUSED_VARIABLE")
             var totalRead = 0L
             val bufferSize = 8192L
 
@@ -463,7 +463,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             }
 
             val encryptedData = encryptedBuffer.readByteArray()
-            Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
+            android.util.Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
 
             // Initialize decryption state
             val secretStream = SecretStream()
@@ -472,45 +472,45 @@ class TheBlank : HttpSource(), ConfigurableSource {
             if (initResult != 0) {
                 throw IOException("Failed to initialize decryption stream")
             }
-            Log.d("TheBlank", "Stream initialized successfully")
+            android.util.Log.d("TheBlank", "Stream initialized successfully")
 
             // === DEBUG: DIRECT DECRYPTION TEST ===
-            Log.d("TheBlank", "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
-
+            android.util.Log.d("TheBlank", "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
+            
             try {
                 // Try to decrypt the first chunk directly to see what we get
                 val testChunk = encryptedData.copyOfRange(0, minOf(65552, encryptedData.size))
                 val testCiphertext = testChunk.copyOfRange(0, testChunk.size - 16)
-
-                Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
-
+                
+                android.util.Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
+                
                 // Try decrypting with counter=1
                 val testPlaintext = ByteArray(testCiphertext.size)
                 ChaCha20.streamIETFXorIC(
-                    testPlaintext,
-                    testCiphertext,
+                    testPlaintext, 
+                    testCiphertext, 
                     testCiphertext.size,
-                    state.nonce,
-                    1,
-                    state.k,
+                    state.nonce, 
+                    1, 
+                    state.k
                 )
-
+                
                 // Check if the first byte looks like a valid tag
                 val possibleTag = testPlaintext[0]
-                Log.d("TheBlank", "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
-                Log.d("TheBlank", "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
-
+                android.util.Log.d("TheBlank", "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
+                android.util.Log.d("TheBlank", "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
+                
                 // If this is an image, we might see PNG or JPEG magic bytes
                 // PNG: 89 50 4E 47
                 // JPEG: FF D8 FF
                 if (testPlaintext.size > 10) {
-                    Log.d("TheBlank", "Bytes 1-10 (after tag): ${testPlaintext.slice(1..10).joinToString(" ") { "%02x".format(it) }}")
+                    android.util.Log.d("TheBlank", "Bytes 1-10 (after tag): ${testPlaintext.slice(1..10).joinToString(" ") { "%02x".format(it) }}")
                 }
             } catch (e: Exception) {
-                Log.e("TheBlank", "Direct decryption test failed", e)
+                android.util.Log.e("TheBlank", "Direct decryption test failed", e)
             }
-
-            Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
+            
+            android.util.Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
             // === END DEBUG CODE ===
 
             // Decrypt all chunks
@@ -528,26 +528,26 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 val chunk = encryptedData.copyOfRange(offset, offset + currentChunkSize)
 
                 chunkCount++
-                Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
+                android.util.Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
 
                 // Log first few bytes of the chunk for debugging
                 val preview = chunk.take(32).joinToString(" ") { "%02x".format(it) }
-                Log.d("TheBlank", "Chunk $chunkCount first 32 bytes: $preview")
+                android.util.Log.d("TheBlank", "Chunk $chunkCount first 32 bytes: $preview")
 
                 if (chunk.size >= 17) {
                     val macPreview = chunk.takeLast(16).joinToString(" ") { "%02x".format(it) }
-                    Log.d("TheBlank", "Chunk $chunkCount MAC (last 16 bytes): $macPreview")
+                    android.util.Log.d("TheBlank", "Chunk $chunkCount MAC (last 16 bytes): $macPreview")
                 }
 
                 // Decrypt the chunk
                 val result = secretStream.pull(state, chunk, chunk.size)
                 if (result == null) {
-                    Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${chunk.size})")
-                    Log.e("TheBlank", "First 32 bytes: $preview")
+                    android.util.Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${chunk.size})")
+                    android.util.Log.e("TheBlank", "First 32 bytes: $preview")
                     throw IOException("Decrypt failed at chunk $chunkCount")
                 }
 
-                Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=0x${result.tag.toString(16)}")
+                android.util.Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=0x${result.tag.toString(16)}")
                 decryptedChunks.add(result.message)
 
                 // Move to next chunk
@@ -555,7 +555,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                 // Check if this was the final chunk
                 if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    Log.d("TheBlank", "Final tag received at chunk $chunkCount")
+                    android.util.Log.d("TheBlank", "Final tag received at chunk $chunkCount")
                     break
                 }
             }
@@ -569,7 +569,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 position += chunk.size
             }
 
-            Log.d("TheBlank", "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
+            android.util.Log.d("TheBlank", "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
 
             // Create a new response with the decrypted data
             val decryptedSource = Buffer().apply { write(decryptedData) }
@@ -578,7 +578,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
         } catch (e: Exception) {
-            Log.e("TheBlank", "Image decryption error", e)
+            android.util.Log.e("TheBlank", "Image decryption error", e)
             throw IOException("Image decryption error: ${e.message}", e)
         }
     }
@@ -586,12 +586,19 @@ class TheBlank : HttpSource(), ConfigurableSource {
     override fun imageUrlParse(response: Response): String {
         throw UnsupportedOperationException()
     }
-
-    companion object {
-        private const val THUMBNAIL_FRAGMENT = "thumbnail"
-        private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-        private const val CHUNK_SIZE = 65552 // 1 (tag) + 65535 (data) + 16 (MAC)
-    }
 }
 
-private const val ABYTES = 16 // MAC only (tag is separate)
+private const val THUMBNAIL_FRAGMENT = "thumbnail"
+private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
+private const val CHUNK_SIZE = 65552 // 65536 (ciphertext with tag) + 16 (MAC)
+
+@Serializable
+data class Version(val version: String)
+
+@Serializable
+data class SessionResponse(val sid: String)
+
+data class KeyPairResult(
+    val keyPair: java.security.KeyPair,
+    val publicKeyBase64: String,
+)
