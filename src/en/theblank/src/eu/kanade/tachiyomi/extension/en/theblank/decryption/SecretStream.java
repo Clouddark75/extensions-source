@@ -68,7 +68,7 @@ public class SecretStream {
             return null;
         }
 
-        // mlen = length without MAC
+        // mlen = length without MAC (includes encrypted tag byte)
         long mlen = inlen - 16;
         
         android.util.Log.d("SecretStream", "Input length: " + inlen);
@@ -98,27 +98,16 @@ public class SecretStream {
             }
         }
 
-        // Create the authentication block
-        // The block contains the encrypted tag byte followed by zeros
-        Arrays.fill(block, (byte) 0);
-        block[0] = in[0]; // Encrypted tag byte
+        // Authenticate the ciphertext directly (all mlen bytes)
+        // This is different from what I had before - we authenticate ALL the ciphertext
+        Poly1305.update(poly1305State, in, 0, (int) mlen);
         
-        android.util.Log.d("SecretStream", "Auth block (first 32 bytes): " + bytesToHex(Arrays.copyOf(block, 32)));
-        
-        // Authenticate the block
-        Poly1305.update(poly1305State, block, 0, 64);
-
-        // Authenticate remaining ciphertext (if any)
-        if (mlen > 1) {
-            Poly1305.update(poly1305State, in, 1, (int) mlen - 1);
-            android.util.Log.d("SecretStream", "Authenticating " + (mlen - 1) + " bytes of ciphertext");
-            android.util.Log.d("SecretStream", "First 32 bytes of ciphertext: " + bytesToHex(Arrays.copyOfRange(in, 1, Math.min(33, (int) mlen))));
-        }
+        android.util.Log.d("SecretStream", "Authenticating " + mlen + " bytes of ciphertext (including tag)");
+        android.util.Log.d("SecretStream", "First 32 bytes: " + bytesToHex(Arrays.copyOfRange(in, 0, Math.min(32, (int) mlen))));
 
         // Padding
-        long totalLen = 64 + (mlen - 1);
-        int padlen = (int) ((16 - (totalLen & 15)) & 15);
-        android.util.Log.d("SecretStream", "Total auth length: " + totalLen + ", padding: " + padlen);
+        int padlen = (int) ((16 - (mlen & 15)) & 15);
+        android.util.Log.d("SecretStream", "Ciphertext length: " + mlen + ", padding: " + padlen);
         if (padlen > 0) {
             Poly1305.update(poly1305State, PAD0, 0, padlen);
         }
@@ -128,9 +117,9 @@ public class SecretStream {
         Poly1305.update(poly1305State, slen, 0, 8);
         android.util.Log.d("SecretStream", "AD length: " + bytesToHex(slen));
         
-        store64_le(slen, 0, totalLen);
+        store64_le(slen, 0, mlen);
         Poly1305.update(poly1305State, slen, 0, 8);
-        android.util.Log.d("SecretStream", "Total length: " + bytesToHex(slen));
+        android.util.Log.d("SecretStream", "Ciphertext length: " + bytesToHex(slen));
 
         // Finalize MAC
         Poly1305.finalizeMAC(poly1305State, mac);
