@@ -478,7 +478,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 // Try to decrypt the first chunk directly to see what we get
                 val testChunk = encryptedData.copyOfRange(0, minOf(65552, encryptedData.size))
                 val testCiphertext = testChunk.copyOfRange(0, testChunk.size - 16)
-                
+
                 android.util.Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
 
                 // Try decrypting with counter=1
@@ -506,7 +506,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             } catch (e: Exception) {
                 android.util.Log.e("TheBlank", "Direct decryption test failed", e)
             }
-        
+
             android.util.Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
             // === END DEBUG CODE ===
 
