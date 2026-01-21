@@ -420,7 +420,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
         return Base64.decode(normalized, Base64.DEFAULT)
     }
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "ComplexMethod")
     private fun imageInterceptor(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val response = chain.proceed(request)
@@ -433,25 +433,26 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
         return try {
             val nonce = decodeUrlSafeBase64(headerNonce)
-            if (nonce.size != NONCE_SIZE) {
-                throw IOException("Invalid nonce size: ${nonce.size}, expected $NONCE_SIZE")
+            if (nonce.size != 24) {
+                throw IOException("Invalid nonce size: ${nonce.size}, expected 24")
             }
 
             // CRITICAL: Hash the session key (fragment) with SHA-256 to get the actual encryption key
             val key = MessageDigest.getInstance("SHA-256")
                 .digest(fragment.toByteArray(Charsets.UTF_8))
-            if (key.size != KEY_SIZE) {
-                throw IOException("Invalid key size: ${key.size}, expected $KEY_SIZE")
+            if (key.size != 32) {
+                throw IOException("Invalid key size: ${key.size}, expected 32")
             }
 
-            Log.d(TAG, "Fragment (session key): $fragment")
-            Log.d(TAG, "Header nonce (base64): $headerNonce")
-            Log.d(TAG, "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
-            Log.d(TAG, "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
+            Log.d("TheBlank", "Fragment (session key): $fragment")
+            Log.d("TheBlank", "Header nonce (base64): $headerNonce")
+            Log.d("TheBlank", "Nonce (hex): ${nonce.joinToString("") { "%02x".format(it) }}")
+            Log.d("TheBlank", "Key (hex): ${key.joinToString("") { "%02x".format(it) }}")
 
             // Read the entire encrypted stream into memory
             val encryptedBuffer = Buffer()
             val source = response.body.source()
+            @Suppress("UNUSED_VARIABLE")
             var totalRead = 0L
             val bufferSize = 8192L
 
@@ -462,7 +463,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             }
 
             val encryptedData = encryptedBuffer.readByteArray()
-            Log.d(TAG, "Total encrypted data size: ${encryptedData.size} bytes")
+            Log.d("TheBlank", "Total encrypted data size: ${encryptedData.size} bytes")
 
             // Initialize decryption state
             val secretStream = SecretStream()
@@ -471,17 +472,17 @@ class TheBlank : HttpSource(), ConfigurableSource {
             if (initResult != 0) {
                 throw IOException("Failed to initialize decryption stream")
             }
-            Log.d(TAG, "Stream initialized successfully")
+            Log.d("TheBlank", "Stream initialized successfully")
 
             // === DEBUG: DIRECT DECRYPTION TEST ===
-            Log.d(TAG, "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
+            Log.d("TheBlank", "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
 
             try {
                 // Try to decrypt the first chunk directly to see what we get
-                val testChunk = encryptedData.copyOfRange(0, minOf(CHUNK_SIZE, encryptedData.size))
-                val testCiphertext = testChunk.copyOfRange(0, testChunk.size - ABYTES)
+                val testChunk = encryptedData.copyOfRange(0, minOf(65552, encryptedData.size))
+                val testCiphertext = testChunk.copyOfRange(0, testChunk.size - 16)
 
-                Log.d(TAG, "Test ciphertext length: ${testCiphertext.size}")
+                Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
 
                 // Try decrypting with counter=1
                 val testPlaintext = ByteArray(testCiphertext.size)
@@ -496,56 +497,57 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                 // Check if the first byte looks like a valid tag
                 val possibleTag = testPlaintext[0]
-                Log.d(TAG, "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
-                Log.d(TAG, "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
+                Log.d("TheBlank", "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
+                Log.d("TheBlank", "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
 
                 // If this is an image, we might see PNG or JPEG magic bytes
                 // PNG: 89 50 4E 47
                 // JPEG: FF D8 FF
                 if (testPlaintext.size > 10) {
-                    Log.d(TAG, "Bytes 1-10 (after tag): ${testPlaintext.slice(1..10).joinToString(" ") { "%02x".format(it) }}")
+                    Log.d("TheBlank", "Bytes 1-10 (after tag): ${testPlaintext.slice(1..10).joinToString(" ") { "%02x".format(it) }}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Direct decryption test failed", e)
+                Log.e("TheBlank", "Direct decryption test failed", e)
             }
 
-            Log.d(TAG, "=== END DIRECT DECRYPTION TEST ===")
+            Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
             // === END DEBUG CODE ===
 
             // Decrypt all chunks
             val decryptedChunks = mutableListOf<ByteArray>()
             var offset = 0
             var chunkCount = 0
+            val chunkSize = CHUNK_SIZE
 
             while (offset < encryptedData.size) {
                 // Calculate this chunk's size (might be smaller for the last chunk)
                 val remainingBytes = encryptedData.size - offset
-                val currentChunkSize = minOf(CHUNK_SIZE, remainingBytes)
+                val currentChunkSize = minOf(chunkSize, remainingBytes)
 
                 // Extract the chunk
                 val chunk = encryptedData.copyOfRange(offset, offset + currentChunkSize)
 
                 chunkCount++
-                Log.d(TAG, "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
+                Log.d("TheBlank", "Processing chunk $chunkCount: size=${chunk.size} bytes, offset=$offset")
 
                 // Log first few bytes of the chunk for debugging
                 val preview = chunk.take(32).joinToString(" ") { "%02x".format(it) }
-                Log.d(TAG, "Chunk $chunkCount first 32 bytes: $preview")
+                Log.d("TheBlank", "Chunk $chunkCount first 32 bytes: $preview")
 
                 if (chunk.size >= 17) {
-                    val macPreview = chunk.takeLast(ABYTES).joinToString(" ") { "%02x".format(it) }
-                    Log.d(TAG, "Chunk $chunkCount MAC (last $ABYTES bytes): $macPreview")
+                    val macPreview = chunk.takeLast(16).joinToString(" ") { "%02x".format(it) }
+                    Log.d("TheBlank", "Chunk $chunkCount MAC (last 16 bytes): $macPreview")
                 }
 
                 // Decrypt the chunk
                 val result = secretStream.pull(state, chunk, chunk.size)
                 if (result == null) {
-                    Log.e(TAG, "Decryption failed for chunk $chunkCount (size=${chunk.size})")
-                    Log.e(TAG, "First 32 bytes: $preview")
+                    Log.e("TheBlank", "Decryption failed for chunk $chunkCount (size=${chunk.size})")
+                    Log.e("TheBlank", "First 32 bytes: $preview")
                     throw IOException("Decrypt failed at chunk $chunkCount")
                 }
 
-                Log.d(TAG, "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=0x${result.tag.toString(16)}")
+                Log.d("TheBlank", "Chunk $chunkCount decrypted: ${result.message.size} bytes, tag=0x${result.tag.toString(16)}")
                 decryptedChunks.add(result.message)
 
                 // Move to next chunk
@@ -553,7 +555,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
                 // Check if this was the final chunk
                 if (result.tag.toInt() == SecretStream.TAG_FINAL) {
-                    Log.d(TAG, "Final tag received at chunk $chunkCount")
+                    Log.d("TheBlank", "Final tag received at chunk $chunkCount")
                     break
                 }
             }
@@ -567,7 +569,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 position += chunk.size
             }
 
-            Log.d(TAG, "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
+            Log.d("TheBlank", "Successfully decrypted ${decryptedChunks.size} chunks, total size: ${decryptedData.size} bytes")
 
             // Create a new response with the decrypted data
             val decryptedSource = Buffer().apply { write(decryptedData) }
@@ -576,7 +578,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 .body(decryptedSource.asResponseBody("image/jpeg".toMediaType()))
                 .build()
         } catch (e: Exception) {
-            Log.e(TAG, "Image decryption error", e)
+            Log.e("TheBlank", "Image decryption error", e)
             throw IOException("Image decryption error: ${e.message}", e)
         }
     }
@@ -586,12 +588,10 @@ class TheBlank : HttpSource(), ConfigurableSource {
     }
 
     companion object {
-        private const val TAG = "TheBlank"
         private const val THUMBNAIL_FRAGMENT = "thumbnail"
         private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
         private const val CHUNK_SIZE = 65552 // 1 (tag) + 65535 (data) + 16 (MAC)
-        private const val ABYTES = 16 // MAC only (tag is separate)
-        private const val NONCE_SIZE = 24
-        private const val KEY_SIZE = 32
     }
 }
+
+private const val ABYTES = 16 // MAC only (tag is separate)
