@@ -4,6 +4,7 @@
  * Copyright (c) 2013-2024 Frank Denis <j at pureftpd dot org>
  * 
  * Based on crypto_secretstream_xchacha20poly1305.c
+ * Exact implementation following libsodium's secretstream format
  */
 
 package eu.kanade.tachiyomi.extension.en.theblank.decryption;
@@ -68,7 +69,7 @@ public class SecretStream {
             return null;
         }
 
-        // mlen = length without MAC (includes encrypted tag byte)
+        // mlen = length without MAC (includes encrypted tag + data)
         long mlen = inlen - 16;
         
         android.util.Log.d("SecretStream", "Input length: " + inlen);
@@ -84,7 +85,6 @@ public class SecretStream {
         Arrays.fill(block, (byte) 0);
         ChaCha20.streamIETF(block, 64, state.nonce, state.k);
         
-        // Debug: Show the Poly1305 key
         android.util.Log.d("SecretStream", "Poly1305 key: " + bytesToHex(Arrays.copyOf(block, 32)));
         
         Poly1305.init(poly1305State, block);
@@ -98,16 +98,34 @@ public class SecretStream {
             }
         }
 
-        // Authenticate the ciphertext directly (all mlen bytes)
-        // This is different from what I had before - we authenticate ALL the ciphertext
-        Poly1305.update(poly1305State, in, 0, (int) mlen);
+        // Create a 64-byte block with the encrypted tag in first position
+        // This block will be XORed with ChaCha20 output for authentication
+        Arrays.fill(block, (byte) 0);
+        block[0] = in[0]; // Encrypted tag byte
         
-        android.util.Log.d("SecretStream", "Authenticating " + mlen + " bytes of ciphertext (including tag)");
-        android.util.Log.d("SecretStream", "First 32 bytes: " + bytesToHex(Arrays.copyOfRange(in, 0, Math.min(32, (int) mlen))));
+        // XOR this block with ChaCha20 stream at counter=1
+        // This gives us what will be authenticated
+        byte[] authBlock = new byte[64];
+        System.arraycopy(block, 0, authBlock, 0, 64);
+        ChaCha20.streamIETFXorIC(authBlock, authBlock, 64, state.nonce, 1, state.k);
+        
+        android.util.Log.d("SecretStream", "Auth block after XOR (first 32): " + bytesToHex(Arrays.copyOf(authBlock, 32)));
+        
+        // Authenticate the XORed block
+        Poly1305.update(poly1305State, authBlock, 0, 64);
 
+        // Authenticate remaining ciphertext (bytes 1 to mlen-1)
+        if (mlen > 1) {
+            Poly1305.update(poly1305State, in, 1, (int) mlen - 1);
+            android.util.Log.d("SecretStream", "Authenticating " + (mlen - 1) + " more bytes of ciphertext");
+        }
+
+        // Total authenticated length
+        long totalLen = 64 + (mlen - 1);
+        
         // Padding
-        int padlen = (int) ((16 - (mlen & 15)) & 15);
-        android.util.Log.d("SecretStream", "Ciphertext length: " + mlen + ", padding: " + padlen);
+        int padlen = (int) ((16 - (totalLen & 15)) & 15);
+        android.util.Log.d("SecretStream", "Total auth length: " + totalLen + ", padding: " + padlen);
         if (padlen > 0) {
             Poly1305.update(poly1305State, PAD0, 0, padlen);
         }
@@ -115,11 +133,9 @@ public class SecretStream {
         // Lengths
         store64_le(slen, 0, ad != null ? adlen : 0);
         Poly1305.update(poly1305State, slen, 0, 8);
-        android.util.Log.d("SecretStream", "AD length: " + bytesToHex(slen));
         
-        store64_le(slen, 0, mlen);
+        store64_le(slen, 0, totalLen);
         Poly1305.update(poly1305State, slen, 0, 8);
-        android.util.Log.d("SecretStream", "Ciphertext length: " + bytesToHex(slen));
 
         // Finalize MAC
         Poly1305.finalizeMAC(poly1305State, mac);
@@ -134,12 +150,6 @@ public class SecretStream {
         // Verify MAC
         if (!constantTimeCompare(mac, storedMac)) {
             android.util.Log.e("SecretStream", "MAC verification FAILED!");
-            
-            // Debug: Let's check what we're authenticating
-            android.util.Log.d("SecretStream", "Nonce: " + bytesToHex(state.nonce));
-            android.util.Log.d("SecretStream", "Key (first 16): " + bytesToHex(Arrays.copyOf(state.k, 16)));
-            android.util.Log.d("SecretStream", "Encrypted tag: 0x" + String.format("%02x", in[0]));
-            
             return null;
         }
         
