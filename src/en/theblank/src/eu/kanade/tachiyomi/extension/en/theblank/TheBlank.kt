@@ -1,12 +1,11 @@
 package eu.kanade.tachiyomi.extension.en.theblank
 
 import android.util.Base64
-import android.util.Log
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
+import eu.kanade.tachiyomi.extension.en.theblank.decryption.ChaCha20
 import eu.kanade.tachiyomi.extension.en.theblank.decryption.SecretStream
 import eu.kanade.tachiyomi.extension.en.theblank.decryption.State
-import eu.kanade.tachiyomi.extension.en.theblank.decryption.ChaCha20
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimit
@@ -476,30 +475,30 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
             // === DEBUG: DIRECT DECRYPTION TEST ===
             android.util.Log.d("TheBlank", "=== ATTEMPTING DIRECT DECRYPTION TEST ===")
-            
+
             try {
                 // Try to decrypt the first chunk directly to see what we get
                 val testChunk = encryptedData.copyOfRange(0, minOf(65552, encryptedData.size))
                 val testCiphertext = testChunk.copyOfRange(0, testChunk.size - 16)
-                
+
                 android.util.Log.d("TheBlank", "Test ciphertext length: ${testCiphertext.size}")
-                
+
                 // Try decrypting with counter=1
                 val testPlaintext = ByteArray(testCiphertext.size)
                 ChaCha20.streamIETFXorIC(
-                    testPlaintext, 
-                    testCiphertext, 
+                    testPlaintext,
+                    testCiphertext,
                     testCiphertext.size,
-                    state.nonce, 
-                    1, 
-                    state.k
+                    state.nonce,
+                    1,
+                    state.k,
                 )
-                
+
                 // Check if the first byte looks like a valid tag
                 val possibleTag = testPlaintext[0]
                 android.util.Log.d("TheBlank", "Decrypted first byte (possible tag): 0x${possibleTag.toString(16)}")
                 android.util.Log.d("TheBlank", "First 32 bytes of decrypted data: ${testPlaintext.take(32).joinToString(" ") { "%02x".format(it) }}")
-                
+
                 // If this is an image, we might see PNG or JPEG magic bytes
                 // PNG: 89 50 4E 47
                 // JPEG: FF D8 FF
@@ -509,7 +508,7 @@ class TheBlank : HttpSource(), ConfigurableSource {
             } catch (e: Exception) {
                 android.util.Log.e("TheBlank", "Direct decryption test failed", e)
             }
-            
+
             android.util.Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
             // === END DEBUG CODE ===
 
