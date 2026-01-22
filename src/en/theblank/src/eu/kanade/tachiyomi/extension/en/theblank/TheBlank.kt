@@ -508,6 +508,8 @@ class TheBlank : HttpSource(), ConfigurableSource {
                 android.util.Log.e("TheBlank", "Direct decryption test failed", e)
             }
 
+            // === ADDITIONAL TEST: Check if first encrypted byte matches ===
+            android.util.Log.d("TheBlank", "Full stream first 32 bytes: ${encryptedData.take(32).joinToString(" ") { "%02x".format(it) }}")
             android.util.Log.d("TheBlank", "=== END DIRECT DECRYPTION TEST ===")
             // === END DEBUG CODE ===
 
