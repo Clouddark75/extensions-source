@@ -590,14 +590,3 @@ class TheBlank : HttpSource(), ConfigurableSource {
 private const val THUMBNAIL_FRAGMENT = "thumbnail"
 private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
 private const val CHUNK_SIZE = 65552 // 65536 (ciphertext with tag) + 16 (MAC)
-
-@Serializable
-data class Version(val version: String)
-
-@Serializable
-data class SessionResponse(val sid: String)
-
-data class KeyPairResult(
-    val keyPair: java.security.KeyPair,
-    val publicKeyBase64: String,
-)
