@@ -590,4 +590,4 @@ class TheBlank : HttpSource(), ConfigurableSource {
 
 private const val THUMBNAIL_FRAGMENT = "thumbnail"
 private const val HIDE_PREMIUM_PREF = "pref_hide_premium_chapters"
-private const val CHUNK_SIZE = 65552 // 65536 (ciphertext with tag) + 16 (MAC)
+private const val CHUNK_SIZE = 65553 // 65536 (plaintext data) + 17 (1 tag + 16 MAC) from libsodium ABYTES
