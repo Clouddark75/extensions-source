@@ -1,15 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**'
-      - '!**.md'
-      - '!.github/**'
-      - '.github/scripts/**'
-      - '.github/workflows/build_push.yml'
   workflow_dispatch:
 
 permissions: {}
@@ -30,6 +21,7 @@ jobs:
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
+
     steps:
       - name: Checkout main branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -40,7 +32,7 @@ jobs:
       - name: Get last successful CI commit
         uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5.0.1
         with:
-          fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904 # empty tree
+          fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
       - id: generate-matrices
         name: Create output matrices
@@ -52,9 +44,12 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
+
     strategy:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+
     steps:
       - name: Checkout main branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -74,7 +69,7 @@ jobs:
 
       - name: Prepare signing key
         run: |
-          echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
+          echo "${{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
 
       - name: Build extensions (${{ matrix.chunk.number }})
         env:
@@ -86,22 +81,25 @@ jobs:
           ./gradlew $MODULES
 
       - name: Upload APKs (${{ matrix.chunk.number }})
+        if: github.repository == 'Clouddark75/extensions-source'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: "github.repository == 'keiyoushi/extensions-source'"
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
           retention-days: 1
 
       - name: Clean up CI files
-        run: rm signingkey.jks
+        run: rm -f signingkey.jks
 
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: "github.repository == 'keiyoushi/extensions-source'"
+
+    if: github.repository == 'Clouddark75/extensions-source'
+
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     steps:
       - name: Download APK artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -114,7 +112,7 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Checkout main branch
+      - name: Checkout source branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: main
@@ -124,16 +122,21 @@ jobs:
       - name: Create repo artifacts
         run: |
           cd main
+
           python ./.github/scripts/move-built-apks.py
+
           INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/keiyoushi/extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
+
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
+
           python ./.github/scripts/create-repo.py
 
       - name: Checkout repo branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: keiyoushi/extensions
+          repository: Clouddark75/extensions-source
           token: ${{ secrets.BOT_PAT }}
           ref: repo
           path: repo
@@ -144,5 +147,7 @@ jobs:
           DELETE: ${{ needs.prepare.outputs.delete }}
         run: |
           cd repo
+
           python ../main/.github/scripts/merge-repo.py "$DELETE"
+
           ../main/.github/scripts/commit-repo.sh
