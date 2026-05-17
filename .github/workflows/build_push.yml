@@ -3,7 +3,8 @@ name: CI
 on:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}
@@ -18,6 +19,7 @@ jobs:
     name: Prepare job
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     outputs:
       matrix: ${{ steps.generate-matrices.outputs.matrix }}
       delete: ${{ steps.generate-matrices.outputs.delete }}
@@ -136,8 +138,6 @@ jobs:
       - name: Checkout repo branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: Clouddark75/extensions-source
-          token: ${{ secrets.BOT_PAT }}
           ref: repo
           path: repo
           persist-credentials: true
