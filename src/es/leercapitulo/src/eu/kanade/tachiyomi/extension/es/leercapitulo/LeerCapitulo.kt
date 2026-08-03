@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.extension.es.leercapitulo
 
 import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -29,11 +28,7 @@ class LeerCapitulo : HttpSource() {
 
     override val baseUrl = "https://www.leercapitulo.co"
 
-    override val client = network.cloudflareClient.newBuilder()
-        .rateLimitHost(baseUrl.toHttpUrl(), 1, 3)
-        .build()
-
-    private val notRateLimitClient = network.cloudflareClient
+    override val client = network.client
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -187,7 +182,7 @@ class LeerCapitulo : HttpSource() {
         }
 
         for (scriptUrl in scripts) {
-            val scriptData = notRateLimitClient.newCall(GET(scriptUrl, headers)).execute().use { it.body.string() }
+            val scriptData = client.newCall(GET(scriptUrl, headers)).execute().use { it.body.string() }
             val deobfuscatedScript = runCatching { Deobfuscator.deobfuscateScript(scriptData) }.getOrNull()
             if (deobfuscatedScript != null && deobfuscatedScript.contains("#array_data")) {
                 dataScript = deobfuscatedScript
