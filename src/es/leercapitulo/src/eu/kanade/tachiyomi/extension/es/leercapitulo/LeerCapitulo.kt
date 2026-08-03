@@ -12,7 +12,6 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.annotation.Source
 import keiyoushi.lib.synchrony.Deobfuscator
-import keiyoushi.network.rateLimit
 import keiyoushi.utils.firstInstanceOrNull
 import keiyoushi.utils.parseAs
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -20,19 +19,12 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Element
 import java.nio.charset.Charset
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class LeerCapitulo : HttpSource() {
-    private val baseUrlHost by lazy { baseUrl.toHttpUrl().host }
-
     override val supportsLatest = true
 
-    override val client = network.client.newBuilder()
-        .rateLimit(1, 3.seconds) { it.host == baseUrlHost }
-        .build()
-
-    private val notRateLimitClient = network.client
+    override val client = network.client
 
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
@@ -186,7 +178,7 @@ abstract class LeerCapitulo : HttpSource() {
         }
 
         for (scriptUrl in scripts) {
-            val scriptData = notRateLimitClient.newCall(GET(scriptUrl, headers)).execute().use { it.body.string() }
+            val scriptData = client.newCall(GET(scriptUrl, headers)).execute().use { it.body.string() }
             val deobfuscatedScript = runCatching { Deobfuscator.deobfuscateScript(scriptData) }.getOrNull()
             if (deobfuscatedScript != null && deobfuscatedScript.contains("#array_data")) {
                 dataScript = deobfuscatedScript
