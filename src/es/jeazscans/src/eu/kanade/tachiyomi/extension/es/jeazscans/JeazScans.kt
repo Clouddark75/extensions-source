@@ -62,23 +62,22 @@ class JeazScans : HttpSource() {
     override fun latestUpdatesParse(response: Response): MangasPage {
         val document = response.asJsoup()
 
-        val mangas = document.select("article.release-card.manga-card").mapNotNull {
-            element ->
+        val mangas = document.select("article.release-card.manga-card").mapNotNull { element ->
             val mangaLink = element.selectFirst("a.release-cover[href*='manga.php?id=']")
-            ?: element.selectFirst("a[href*='manga.php?id=']")
-            ?: return@mapNotNull null
+                ?: element.selectFirst("a[href*='manga.php?id=']")
+                ?: return@mapNotNull null
 
             val title = element.selectFirst("a.release-title")?.text()?.trim()
-            ?: mangaLink.selectFirst("img")?.attr("alt")?.trim()
-            ?: return@mapNotNull null
+                ?: mangaLink.selectFirst("img")?.attr("alt")?.trim()
+                ?: return@mapNotNull null
 
             SManga.create().apply {
                 setUrlWithoutDomain(mangaLink.attr("abs:href"))
                 this.title = title
 
                 thumbnail_url = mangaLink
-                .selectFirst("img")
-                ?.attr("abs:src")
+                    .selectFirst("img")
+                    ?.attr("abs:src")
             }
         }
 
@@ -181,8 +180,7 @@ class JeazScans : HttpSource() {
         )
 
         if (imageElements.isNotEmpty()) {
-            return imageElements.mapIndexedNotNull {
-                index, element ->
+            return imageElements.mapIndexedNotNull { index, element ->
                 val imageUrl = element.attr("abs:data-src")
 
                 if (imageUrl.isNotBlank()) {
@@ -198,7 +196,6 @@ class JeazScans : HttpSource() {
 
         return fetchPagesFromApi(document)
     }
-
 
     private fun fetchPagesFromApi(document: Document): List<Page> {
         val (slug, cap) = extractSlugAndCap(document) ?: throw Exception("Could not extract slug/cap for API")
