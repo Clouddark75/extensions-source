@@ -399,25 +399,24 @@ class JeazScans : HttpSource() {
         private val CAP_INICIAL_REGEX = Regex("""CAP_INICIAL\s*=\s*["']([^"']+)["']""")
     }
 
-    private data class ChapterApiResponse(
-    val success: Boolean,
-    val chapters: List<ChapterApiItem>,
-    val hasMore: Boolean,
-    val nextOffset: Int,
-    val totalCount: Int,
-    val matchCount: Int?,
-)
+    private data class ChapterApiResponse {
+        val success: Boolean,
+        val chapters: List<ChapterApiItem>,
+        val has_more: Boolean,
+        val next_offset: Int,
+        val total_count: Int,
+        val match_count: Int?,
+     } 
 
-private data class ChapterApiItem(
-    val id: Int,
-    val number: String,
-    val title: String,
-    val publishedAt: String,
-    val views: Int,
-    val price: Int,
-    val paymentUntil: String,
-    val bannerUrl: String,
-    val isLocked: Boolean,
-    val isRead: Boolean,
-)
-}
+    private data class ChapterApiItem {
+        val id: Int,
+        val number: String,
+        val title: String,
+        val published_at: String,
+        val views: Int,
+        val price: Int,
+        val payment_until: String,
+        val banner_url: String,
+        val is_locked: Boolean,
+        val is_read: Boolean,
+     } 
