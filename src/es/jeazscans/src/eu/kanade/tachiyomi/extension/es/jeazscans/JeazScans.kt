@@ -114,7 +114,7 @@ class JeazScans : HttpSource() {
         }
     }
 
-        override fun chapterListParse(response: Response): List<SChapter> {
+    override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
         val mangaId = document
