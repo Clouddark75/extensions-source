@@ -203,7 +203,7 @@ class JeazScans : HttpSource() {
         val request = GET(
             page.imageUrl!!,
             headers.newBuilder()
-                .set("Referer", page.url)
+                .set("Referer", currentChapterUrl)
                 .set(
                     "Accept",
                     "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
