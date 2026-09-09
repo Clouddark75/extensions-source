@@ -35,8 +35,8 @@ class JeazScans : HttpSource() {
     override val versionId = 2
 
     override val client: OkHttpClient = network.cloudflareClient.newBuilder()
-        .rateLimit(2)
-        .build()
+    .rateLimit(2)
+    .build()
 
     private val dateFormat by lazy {
         SimpleDateFormat("dd MMM, yyyy", Locale.US)
@@ -47,7 +47,8 @@ class JeazScans : HttpSource() {
 
     override fun popularMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select("section:has(h3:matchesOwn((?i)Top Rankings)) a[href*='manga.php?id=']").map { element ->
+        val mangas = document.select("section:has(h3:matchesOwn((?i)Top Rankings)) a[href*='manga.php?id=']").map {
+            element ->
             SManga.create().apply {
                 setUrlWithoutDomain(element.attr("abs:href"))
                 title = element.selectFirst("h4, h5")!!.text()
@@ -61,14 +62,26 @@ class JeazScans : HttpSource() {
 
     override fun latestUpdatesParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select("section:has(h3:contains(Lanzamientos)) .manga-card")
-            .map { element ->
-                SManga.create().apply {
-                    setUrlWithoutDomain(element.selectFirst("a[href*='manga.php?id=']")!!.attr("abs:href"))
-                    title = element.selectFirst("figcaption")!!.text()
-                    thumbnail_url = element.selectFirst("img")?.attr("abs:src")
-                }
+
+        val mangas = document.select("article.release-card.manga-card").mapNotNull {
+            element ->
+            val mangaLink = element.selectFirst("a.release-cover[href*='manga.php?id=']")
+            ?: element.selectFirst("a[href*='manga.php?id=']")
+            ?: return@mapNotNull null
+
+            val title = element.selectFirst("a.release-title")?.text()?.trim()
+            ?: mangaLink.selectFirst("img")?.attr("alt")?.trim()
+            ?: return@mapNotNull null
+
+            SManga.create().apply {
+                setUrlWithoutDomain(mangaLink.attr("abs:href"))
+                this.title = title
+
+                thumbnail_url = mangaLink
+                .selectFirst("img")
+                ?.attr("abs:src")
             }
+        }
 
         return MangasPage(mangas, false)
     }
@@ -80,23 +93,33 @@ class JeazScans : HttpSource() {
 
             description = buildString {
                 val descriptionBlock = document.selectFirst("div.text-gray-200:has(h3:matchesOwn((?i)SINOPSIS))")
-                    ?: document.selectFirst("div.text-gray-200")
+                ?: document.selectFirst("div.text-gray-200")
                 descriptionBlock?.let {
-                    append(it.ownText().ifEmpty { it.text().replace(SINOPSIS_REGEX, "") })
+                    append(it.ownText().ifEmpty {
+                        it.text().replace(SINOPSIS_REGEX, "")
+                    })
                 }
             }
 
             thumbnail_url = document.selectFirst("div.lg\\:col-span-3 div.cultivation-panel img")?.attr("abs:src")
 
-            genre = document.select("a[href*='directorio.php?genero=']").joinToString { it.text() }
+            genre = document.select("a[href*='directorio.php?genero=']").joinToString {
+                it.text()
+            }
 
             val statusText = document.selectFirst("span.status-badge")?.text().orEmpty().lowercase()
             if (statusText.isNotEmpty()) {
                 status = when {
                     statusText.contains("complet") -> SManga.COMPLETED
-                    arrayOf("pausa", "hiato").any { statusText.contains(it) } -> SManga.ON_HIATUS
-                    arrayOf("cancel", "aband").any { statusText.contains(it) } -> SManga.CANCELLED
-                    arrayOf("cultivo", "curso", "ongoing", "emision").any { statusText.contains(it) } -> SManga.ONGOING
+                    arrayOf("pausa", "hiato").any {
+                        statusText.contains(it)
+                    } -> SManga.ON_HIATUS
+                    arrayOf("cancel", "aband").any {
+                        statusText.contains(it)
+                    } -> SManga.CANCELLED
+                    arrayOf("cultivo", "curso", "ongoing", "emision").any {
+                        statusText.contains(it)
+                    } -> SManga.ONGOING
                     else -> SManga.UNKNOWN
                 }
             }
@@ -105,19 +128,20 @@ class JeazScans : HttpSource() {
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        return document.select("#chaptersContainer a.chapter-item").map { element ->
+        return document.select("#chaptersContainer a.chapter-item").map {
+            element ->
             SChapter.create().apply {
                 val chapterUrl = element.attr("abs:href")
                 setUrlWithoutDomain(chapterUrl)
 
                 val parsedChapterNumber = element.attr("data-chapter-number")
-                    .toFloatOrNull()
-                    ?: CHAPTER_NUMBER_REGEX
-                        .find(chapterUrl)
-                        ?.groupValues
-                        ?.getOrNull(1)
-                        ?.toFloatOrNull()
-                    ?: -1f
+                .toFloatOrNull()
+                ?: CHAPTER_NUMBER_REGEX
+                .find(chapterUrl)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toFloatOrNull()
+                ?: -1f
                 chapter_number = parsedChapterNumber
 
                 val chapterTitle = element.selectFirst(".chapter-title")?.text().orEmpty()
@@ -141,43 +165,63 @@ class JeazScans : HttpSource() {
                 val number = NUMBER_REGEX.find(lowercaseDate)?.value?.toIntOrNull() ?: return 0L
                 val cal = Calendar.getInstance()
                 when {
-                    lowercaseDate.contains("segundo") -> cal.apply { add(Calendar.SECOND, -number) }.timeInMillis
-                    lowercaseDate.contains("minuto") -> cal.apply { add(Calendar.MINUTE, -number) }.timeInMillis
-                    lowercaseDate.contains("hora") -> cal.apply { add(Calendar.HOUR, -number) }.timeInMillis
-                    lowercaseDate.contains("día") || lowercaseDate.contains("dia") -> cal.apply { add(Calendar.DAY_OF_MONTH, -number) }.timeInMillis
-                    lowercaseDate.contains("semana") -> cal.apply { add(Calendar.WEEK_OF_YEAR, -number) }.timeInMillis
-                    lowercaseDate.contains("mes") -> cal.apply { add(Calendar.MONTH, -number) }.timeInMillis
-                    lowercaseDate.contains("año") -> cal.apply { add(Calendar.YEAR, -number) }.timeInMillis
+                    lowercaseDate.contains("segundo") -> cal.apply {
+                        add(Calendar.SECOND, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("minuto") -> cal.apply {
+                        add(Calendar.MINUTE, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("hora") -> cal.apply {
+                        add(Calendar.HOUR, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("día") || lowercaseDate.contains("dia") -> cal.apply {
+                        add(Calendar.DAY_OF_MONTH, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("semana") -> cal.apply {
+                        add(Calendar.WEEK_OF_YEAR, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("mes") -> cal.apply {
+                        add(Calendar.MONTH, -number)
+                    }.timeInMillis
+                    lowercaseDate.contains("año") -> cal.apply {
+                        add(Calendar.YEAR, -number)
+                    }.timeInMillis
                     else -> 0L
                 }
             }
             lowercaseDate.contains("ayer") -> {
-                Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -1) }.timeInMillis
+                Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_MONTH, -1)
+                }.timeInMillis
             }
             lowercaseDate.contains("hoy") -> {
                 Calendar.getInstance().timeInMillis
-            }
-            else -> dateFormat.tryParse(date)
+            } else -> dateFormat.tryParse(date)
         }
     }
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
+
         val imageElements = document.select(
-            ".page-container img.protected-img, .reader-body img, .reading-content img",
+            "img.reader-page-image"
         )
 
-        val htmlPages = imageElements.mapIndexed { index, element ->
-            val imageUrl = when {
-                element.hasAttr("data-sec-src") -> element.attr("abs:data-sec-src")
-                element.hasAttr("data-src") -> element.attr("abs:data-src")
-                else -> element.attr("abs:src")
+        if (imageElements.isNotEmpty()) {
+            return imageElements.mapIndexedNotNull {
+                index, element ->
+                val imageUrl = element.attr("abs:data-src")
+
+                if (imageUrl.isNotBlank()) {
+                    Page(
+                        index = index,
+                        imageUrl = imageUrl,
+                    )
+                } else {
+                    null
+                }
             }
-
-            Page(index, imageUrl = imageUrl)
         }
-
-        if (htmlPages.isNotEmpty()) return htmlPages
 
         return fetchPagesFromApi(document)
     }
@@ -187,10 +231,11 @@ class JeazScans : HttpSource() {
         val apiUrl = buildApiUrl(document.location(), slug, cap) ?: throw Exception("Could not build API URL")
 
         val requestHeaders = headers.newBuilder()
-            .set("Referer", document.location())
-            .build()
+        .set("Referer", document.location())
+        .build()
 
-        val payload = client.newCall(GET(apiUrl, requestHeaders)).execute().use { response ->
+        val payload = client.newCall(GET(apiUrl, requestHeaders)).execute().use {
+            response ->
             if (!response.isSuccessful) {
                 throw Exception("HTTP error ${response.code}")
             }
@@ -203,11 +248,19 @@ class JeazScans : HttpSource() {
 
         val pages = payload.paginas
 
-        return pages.filter { it.dataVerify.isNotBlank() }
-            .sortedBy { it.orden }
-            .mapNotNull { decodeVerifyToUrl(it.dataVerify) }
-            .distinct()
-            .mapIndexed { idx, imageUrl -> Page(idx, imageUrl = imageUrl) }
+        return pages.filter {
+            it.dataVerify.isNotBlank()
+        }
+        .sortedBy {
+            it.orden
+        }
+        .mapNotNull {
+            decodeVerifyToUrl(it.dataVerify)
+        }
+        .distinct()
+        .mapIndexed {
+            idx, imageUrl -> Page(idx, imageUrl = imageUrl)
+        }
     }
 
     private fun decodeVerifyToUrl(dataVerify: String): String? {
@@ -229,23 +282,25 @@ class JeazScans : HttpSource() {
         }
 
         val fromPath = PATH_SLUG_CAP_REGEX
-            .find(document.location())
-            ?.groupValues
+        .find(document.location())
+        ?.groupValues
         if (fromPath != null && fromPath.size >= 3) {
             return fromPath[1] to fromPath[2]
         }
 
-        val scriptContent = document.select("script").joinToString("\n") { it.data() + "\n" + it.html() }
+        val scriptContent = document.select("script").joinToString("\n") {
+            it.data() + "\n" + it.html()
+        }
         val slugFromScript = MANGA_SLUG_REGEX
-            .find(scriptContent)
-            ?.groupValues
-            ?.getOrNull(1)
-            .orEmpty()
+        .find(scriptContent)
+        ?.groupValues
+        ?.getOrNull(1)
+        .orEmpty()
         val capFromScript = CAP_INICIAL_REGEX
-            .find(scriptContent)
-            ?.groupValues
-            ?.getOrNull(1)
-            .orEmpty()
+        .find(scriptContent)
+        ?.groupValues
+        ?.getOrNull(1)
+        .orEmpty()
 
         if (slugFromScript.isNotEmpty() && capFromScript.isNotEmpty()) {
             return slugFromScript to capFromScript
@@ -259,11 +314,11 @@ class JeazScans : HttpSource() {
 
         return runCatching {
             current.newBuilder()
-                .encodedPath("/api_lector.php")
-                .setQueryParameter("slug", slug)
-                .setQueryParameter("cap", cap)
-                .build()
-                .toString()
+            .encodedPath("/api_lector.php")
+            .setQueryParameter("slug", slug)
+            .setQueryParameter("cap", cap)
+            .build()
+            .toString()
         }.getOrNull()
     }
 
@@ -271,8 +326,8 @@ class JeazScans : HttpSource() {
         latestUpdatesRequest(page)
     } else {
         val url = "$baseUrl/ajax_search.php".toHttpUrl().newBuilder()
-            .addQueryParameter("q", query.trim())
-            .build()
+        .addQueryParameter("q", query.trim())
+        .build()
         GET(url, headers)
     }
 
@@ -282,7 +337,9 @@ class JeazScans : HttpSource() {
         }
 
         val items = response.parseAs<List<SearchResponseItem>>()
-        val mangas = items.mapNotNull { it.toSManga(baseUrl) }
+        val mangas = items.mapNotNull {
+            it.toSManga(baseUrl)
+        }
 
         return MangasPage(mangas, false)
     }
