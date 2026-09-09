@@ -184,6 +184,7 @@ class JeazScans : HttpSource() {
                 if (imageUrl.isNotBlank()) {
                     Page(
                         index = index,
+                        url = response.url.toString(),
                         imageUrl = imageUrl,
                     )
                 } else {
@@ -195,8 +196,9 @@ class JeazScans : HttpSource() {
         return fetchPagesFromApi(document)
     }
 
+
     override fun imageRequest(page: Page): Request {
-        val request = GET(
+        return GET(
             page.imageUrl!!,
             headers.newBuilder()
                 .set("Referer", page.url)
@@ -206,8 +208,6 @@ class JeazScans : HttpSource() {
                 )
                 .build(),
         )
-
-        return request
     }
 
     private fun fetchPagesFromApi(document: Document): List<Page> {
