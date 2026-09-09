@@ -114,26 +114,32 @@ class JeazScans : HttpSource() {
         }
     }
 
-    override fun chapterListParse(response: Response): List<SChapter> {
+        override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
-        val mangaId = document.location()
-            .toHttpUrlOrNull()
-            ?.queryParameter("id")
+        val mangaId = document
+            .selectFirst("[data-manga-id]")
+            ?.attr("data-manga-id")
             ?.toIntOrNull()
-            ?: throw Exception("Could not extract manga ID")
+            ?: document
+                .location()
+                .toHttpUrlOrNull()
+                ?.queryParameter("id")
+                ?.toIntOrNull()
+            ?: return emptyList()
 
         val chapters = mutableListOf<SChapter>()
 
         var offset = 0
-        var hasMore = true
+        val limit = 30
 
-        while (hasMore) {
-            val apiUrl = "$baseUrl/api_capitulos_manga.php".toHttpUrl()
+        while (true) {
+            val apiUrl = "$baseUrl/api_capitulos_manga.php"
+                .toHttpUrl()
                 .newBuilder()
                 .addQueryParameter("manga_id", mangaId.toString())
                 .addQueryParameter("offset", offset.toString())
-                .addQueryParameter("limit", "30")
+                .addQueryParameter("limit", limit.toString())
                 .addQueryParameter("orden", "desc")
                 .build()
 
@@ -144,16 +150,16 @@ class JeazScans : HttpSource() {
                         .set("Referer", document.location())
                         .build(),
                 ),
-            ).execute().use { apiResponse ->
-                if (!apiResponse.isSuccessful) {
-                    throw Exception("Chapter API HTTP error ${apiResponse.code}")
+            ).execute().use { result ->
+                if (!result.isSuccessful) {
+                    throw Exception("HTTP ${result.code} loading chapters")
                 }
 
-                apiResponse.parseAs<ChapterApiResponse>()
+                result.parseAs<ChapterApiResponse>()
             }
 
-            if (!apiResponse.success) {
-                throw Exception("Chapter API returned an error")
+            if (!apiResponse.success || apiResponse.chapters.isEmpty()) {
+                break
             }
 
             apiResponse.chapters.forEach { chapter ->
@@ -162,7 +168,7 @@ class JeazScans : HttpSource() {
 
                 chapters += SChapter.create().apply {
                     setUrlWithoutDomain(
-                        "/ver_capitulo.php?id=${chapter.id}",
+                        "$baseUrl/ver_capitulo.php?id=${chapter.id}",
                     )
 
                     chapter_number = chapterNumber
@@ -171,24 +177,24 @@ class JeazScans : HttpSource() {
                         "Chapter ${chapter.number.removeSuffix(".0")}"
                     }
 
-                    date_upload = parseChapterDate(chapter.published_at)
+                    date_upload = parseChapterDate(
+                        chapter.published_at,
+                    )
                 }
             }
 
-            if (apiResponse.chapters.isEmpty()) {
+            if (!apiResponse.has_more) {
                 break
             }
 
-            hasMore = apiResponse.has_more
+            val nextOffset = apiResponse.next_offset
 
-            if (hasMore) {
-                offset = apiResponse.next_offset
-
-                // Protección contra una respuesta incorrecta de la API.
-                if (offset <= 0) {
-                    break
-                }
+            // Evita un bucle infinito si la API devuelve un offset incorrecto.
+            if (nextOffset <= offset) {
+                break
             }
+
+            offset = nextOffset
         }
 
         return chapters
