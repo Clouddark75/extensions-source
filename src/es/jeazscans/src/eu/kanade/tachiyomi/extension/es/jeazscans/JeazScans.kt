@@ -40,6 +40,8 @@ class JeazScans : HttpSource() {
         SimpleDateFormat("dd MMM, yyyy", Locale.US)
     }
 
+    private var currentChapterUrl = baseUrl
+
     // The site migrated to custom home sections and PHP routes for search.
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/", headers)
 
@@ -171,6 +173,8 @@ class JeazScans : HttpSource() {
     }
 
     override fun pageListParse(response: Response): List<Page> {
+        currentChapterUrl = response.url.toString()
+
         val document = response.asJsoup()
 
         val imageElements = document.select(
@@ -184,7 +188,6 @@ class JeazScans : HttpSource() {
                 if (imageUrl.isNotBlank()) {
                     Page(
                         index = index,
-                        url = response.url.toString(),
                         imageUrl = imageUrl,
                     )
                 } else {
