@@ -44,42 +44,32 @@ class JeazScans : HttpSource() {
     private var currentChapterUrl = baseUrl
 
     // The site migrated to custom home sections and PHP routes for search.
-    override fun popularMangaRequest(page: Int): Request {
-        return directoryRequest(
-            page = page,
-            query = null,
-            filters = FilterList(),
-        )
-    }
+    override fun popularMangaRequest(page: Int): Request = directoryRequest(
+        page = page,
+        query = null,
+        filters = FilterList(),
+    )
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        return parseDirectory(response)
-    }
+    override fun popularMangaParse(response: Response): MangasPage = parseDirectory(response)
 
-    override fun latestUpdatesRequest(page: Int): Request {
-        return directoryRequest(
-            page = page,
-            query = null,
-            filters = FilterList(
-                OrderFilter().apply {
-                    state = 0
-                },
-            ),
-        )
-    }
+    override fun latestUpdatesRequest(page: Int): Request = directoryRequest(
+        page = page,
+        query = null,
+        filters = FilterList(
+            OrderFilter().apply {
+                state = 0
+            },
+        ),
+    )
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        return parseDirectory(response)
-    }
+    override fun latestUpdatesParse(response: Response): MangasPage = parseDirectory(response)
 
-    override fun getFilterList(): FilterList {
-        return FilterList(
-            TypeFilter(),
-            StatusFilter(),
-            OrderFilter(),
-            GenreFilter(),
-        )
-    }
+    override fun getFilterList(): FilterList = FilterList(
+        TypeFilter(),
+        StatusFilter(),
+        OrderFilter(),
+        GenreFilter(),
+    )
 
     private fun directoryRequest(
         page: Int,
@@ -394,20 +384,16 @@ class JeazScans : HttpSource() {
         return fetchPagesFromApi(document)
     }
 
-    override fun imageRequest(page: Page): Request {
-        val request = GET(
-            page.imageUrl!!,
-            headers.newBuilder()
-                .set("Referer", currentChapterUrl)
-                .set(
-                    "Accept",
-                    "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-                )
-                .build(),
-        )
-
-        return request
-    }
+    override fun imageRequest(page: Page): Request = GET(
+        page.imageUrl!!,
+        headers.newBuilder()
+            .set("Referer", currentChapterUrl)
+            .set(
+                "Accept",
+                "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            )
+            .build(),
+    )
 
     private fun fetchPagesFromApi(document: Document): List<Page> {
         val (slug, cap) = extractSlugAndCap(document) ?: throw Exception("Could not extract slug/cap for API")
@@ -514,7 +500,7 @@ class JeazScans : HttpSource() {
         return MangasPage(mangas, false)
     }
 
-    override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     private class TypeFilter : Filter.Select<String>(
         "Tipo de proyecto",
