@@ -214,15 +214,6 @@ class JeazScans : HttpSource() {
         )
     }
 
-    override fun latestUpdatesRequest(page: Int): Request =
-        GET(
-            "$baseUrl/directorio.php?page=$page",
-            headers,
-        )
-
-    override fun latestUpdatesParse(response: Response): MangasPage =
-        popularMangaParse(response)
-
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
         return SManga.create().apply {
@@ -519,26 +510,6 @@ class JeazScans : HttpSource() {
         }.getOrNull()
     }
 
-    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = if (query.isBlank()) {
-        latestUpdatesRequest(page)
-    } else {
-        val url = "$baseUrl/ajax_search.php".toHttpUrl().newBuilder()
-            .addQueryParameter("q", query.trim())
-            .build()
-        GET(url, headers)
-    }
-
-    override fun searchMangaParse(response: Response): MangasPage {
-        if (!response.request.url.encodedPath.endsWith("/ajax_search.php")) {
-            return latestUpdatesParse(response)
-        }
-
-        val items = response.parseAs<List<SearchResponseItem>>()
-        val mangas = items.mapNotNull { it.toSManga(baseUrl) }
-
-        return MangasPage(mangas, false)
-    }
-
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
     private class TypeFilter : Filter.Select(
@@ -641,7 +612,6 @@ class JeazScans : HttpSource() {
 
     companion object {
         private val SINOPSIS_REGEX = Regex("^SINOPSIS:?\\s*", RegexOption.IGNORE_CASE)
-        private val CHAPTER_NUMBER_REGEX = Regex("capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
         private val NUMBER_REGEX = Regex("""\d+""")
         private val PATH_SLUG_CAP_REGEX = Regex("/leer/([^/]+)/capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
         private val MANGA_SLUG_REGEX = Regex("""MANGA_SLUG\s*=\s*["']([^"']+)["']""")
