@@ -403,4 +403,4 @@ class JeazScans : HttpSource() {
         private val MANGA_SLUG_REGEX = Regex("""MANGA_SLUG\s*=\s*["']([^"']+)["']""")
         private val CAP_INICIAL_REGEX = Regex("""CAP_INICIAL\s*=\s*["']([^"']+)["']""")
     }
-} 
+}
