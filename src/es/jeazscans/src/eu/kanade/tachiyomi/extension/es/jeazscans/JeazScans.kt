@@ -116,32 +116,101 @@ class JeazScans : HttpSource() {
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
-        return document.select("#chaptersContainer a.chapter-item").map { element ->
+
+        val initialChapters = document.select(
+            "#chaptersContainer a[href*='ver_capitulo.php?id=']",
+        ).mapNotNull { element ->
+            val chapterUrl = element.attr("abs:href")
+            val chapterNumber = element.selectFirst(".release-chapter-number")
+                ?.text()
+                ?.replace(Regex("(?i)Capítulo\\s*"), "")
+                ?.trim()
+                ?.toFloatOrNull()
+                ?: CHAPTER_NUMBER_REGEX
+                    .find(chapterUrl)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.toFloatOrNull()
+                ?: return@mapNotNull null
+
             SChapter.create().apply {
-                val chapterUrl = element.attr("abs:href")
                 setUrlWithoutDomain(chapterUrl)
+                chapter_number = chapterNumber
 
-                val parsedChapterNumber = element.attr("data-chapter-number")
-                    .toFloatOrNull()
-                    ?: CHAPTER_NUMBER_REGEX
-                        .find(chapterUrl)
-                        ?.groupValues
-                        ?.getOrNull(1)
-                        ?.toFloatOrNull()
-                    ?: -1f
-                chapter_number = parsedChapterNumber
+                name = element.selectFirst(".release-chapter-number")
+                    ?.text()
+                    ?.trim()
+                    ?.ifEmpty { null }
+                    ?: "Chapter ${chapterNumber.toString().removeSuffix(".0")}"
 
-                val chapterTitle = element.selectFirst(".chapter-title")?.text().orEmpty()
-                name = if (chapterTitle.isNotEmpty()) {
-                    chapterTitle
-                } else {
-                    "Chapter ${parsedChapterNumber.toString().removeSuffix(".0")}"
-                }
-
-                val dateText = element.selectFirst("span:has(i.ph-clock)")?.text()
-                date_upload = parseChapterDate(dateText)
+                date_upload = parseChapterDate(
+                    element.selectFirst(".chapter-date")?.text(),
+                )
             }
         }
+
+        val mangaId = document.location()
+            .toHttpUrlOrNull()
+            ?.queryParameter("id")
+            ?.toIntOrNull()
+            ?: return initialChapters
+
+        val apiChapters = mutableListOf<SChapter>()
+        var offset = 20
+        var hasMore = true
+
+        while (hasMore) {
+            val apiUrl = "$baseUrl/api_capitulos_manga.php".toHttpUrl()
+                .newBuilder()
+                .addQueryParameter("manga_id", mangaId.toString())
+                .addQueryParameter("offset", offset.toString())
+                .addQueryParameter("limit", "20")
+                .addQueryParameter("orden", "desc")
+                .build()
+
+            val apiResponse = client.newCall(
+                GET(
+                    apiUrl,
+                    headers.newBuilder()
+                        .set("Referer", document.location())
+                        .build(),
+                ),
+            ).execute().use { apiResponse ->
+                if (!apiResponse.isSuccessful) {
+                    return@use null
+                }
+
+                apiResponse.parseAs<ChapterApiResponse>()
+            }
+
+            if (apiResponse == null) break
+
+            apiResponse.chapters.forEach { chapter ->
+                val number = chapter.number.toFloatOrNull() ?: return@forEach
+
+                apiChapters += SChapter.create().apply {
+                    setUrlWithoutDomain(
+                        "/ver_capitulo.php?id=${chapter.id}",
+                    )
+                    chapter_number = number
+                    name = chapter.title.ifBlank {
+                        "Chapter ${chapter.number.removeSuffix(".0")}"
+                    }
+                    date_upload = parseChapterDate(chapter.publishedAt)
+                }
+            }
+
+            hasMore = apiResponse.hasMore
+            offset = apiResponse.nextOffset
+
+            if (apiResponse.chapters.isEmpty()) {
+                break
+            }
+        }
+
+        return (initialChapters + apiChapters)
+            .distinctBy { it.url }
+            .sortedByDescending { it.chapter_number }
     }
 
     private fun parseChapterDate(date: String?): Long {
@@ -329,4 +398,26 @@ class JeazScans : HttpSource() {
         private val MANGA_SLUG_REGEX = Regex("""MANGA_SLUG\s*=\s*["']([^"']+)["']""")
         private val CAP_INICIAL_REGEX = Regex("""CAP_INICIAL\s*=\s*["']([^"']+)["']""")
     }
+
+    private data class ChapterApiResponse(
+    val success: Boolean,
+    val chapters: List<ChapterApiItem>,
+    val hasMore: Boolean,
+    val nextOffset: Int,
+    val totalCount: Int,
+    val matchCount: Int?,
+)
+
+private data class ChapterApiItem(
+    val id: Int,
+    val number: String,
+    val title: String,
+    val publishedAt: String,
+    val views: Int,
+    val price: Int,
+    val paymentUntil: String,
+    val bannerUrl: String,
+    val isLocked: Boolean,
+    val isRead: Boolean,
+)
 }
