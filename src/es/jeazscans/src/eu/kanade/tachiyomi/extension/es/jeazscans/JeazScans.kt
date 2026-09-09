@@ -176,7 +176,7 @@ class JeazScans : HttpSource() {
         val document = response.asJsoup()
 
         val imageElements = document.select(
-            "img.reader-page-image"
+            "img.reader-page-image",
         )
 
         if (imageElements.isNotEmpty()) {
