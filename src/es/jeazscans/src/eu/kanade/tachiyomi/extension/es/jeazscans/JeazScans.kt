@@ -143,7 +143,7 @@ class JeazScans : HttpSource() {
                 .addQueryParameter("orden", "desc")
                 .build()
 
-            val apiResponse = client.newCall(
+            val json = client.newCall(
                 GET(
                     apiUrl,
                     headers.newBuilder()
@@ -155,41 +155,64 @@ class JeazScans : HttpSource() {
                     throw Exception("HTTP ${result.code} loading chapters")
                 }
 
-                result.parseAs<ChapterApiResponse>()
+                result.body.string()
             }
 
-            if (!apiResponse.success || apiResponse.chapters.isEmpty()) {
+            val jsonObject = org.json.JSONObject(json)
+
+            if (!jsonObject.optBoolean("success", false)) {
+                throw Exception("API returned an error while loading chapters")
+            }
+
+            val chapterArray = jsonObject.optJSONArray("chapters")
+                ?: break
+
+            if (chapterArray.length() == 0) {
                 break
             }
 
-            apiResponse.chapters.forEach { chapter ->
-                val chapterNumber = chapter.number.toFloatOrNull()
-                    ?: return@forEach
+            for (i in 0 until chapterArray.length()) {
+                val chapter = chapterArray.getJSONObject(i)
+
+                val id = chapter.optInt("id")
+                val number = chapter.optString("number")
+
+                val chapterNumber = number.toFloatOrNull()
+                    ?: continue
+
+                val title = chapter
+                    .optString("title")
+                    .ifBlank {
+                        "Chapter ${number.removeSuffix(".0")}"
+                    }
+
+                val publishedAt = chapter.optString("published_at")
 
                 chapters += SChapter.create().apply {
                     setUrlWithoutDomain(
-                        "$baseUrl/ver_capitulo.php?id=${chapter.id}",
+                        "$baseUrl/ver_capitulo.php?id=$id",
                     )
 
                     chapter_number = chapterNumber
-
-                    name = chapter.title.ifBlank {
-                        "Chapter ${chapter.number.removeSuffix(".0")}"
-                    }
-
-                    date_upload = parseChapterDate(
-                        chapter.published_at,
-                    )
+                    name = title
+                    date_upload = parseChapterDate(publishedAt)
                 }
             }
 
-            if (!apiResponse.has_more) {
+            val hasMore = jsonObject.optBoolean(
+                "has_more",
+                false,
+            )
+
+            if (!hasMore) {
                 break
             }
 
-            val nextOffset = apiResponse.next_offset
+            val nextOffset = jsonObject.optInt(
+                "next_offset",
+                offset + limit,
+            )
 
-            // Evita un bucle infinito si la API devuelve un offset incorrecto.
             if (nextOffset <= offset) {
                 break
             }
@@ -378,28 +401,6 @@ class JeazScans : HttpSource() {
     }
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
-
-    private data class ChapterApiResponse(
-        val success: Boolean,
-        val chapters: List<ChapterApiItem>,
-        val has_more: Boolean,
-        val next_offset: Int,
-        val total_count: Int,
-        val match_count: Int?,
-    )
-
-    private data class ChapterApiItem(
-        val id: Int,
-        val number: String,
-        val title: String,
-        val published_at: String,
-        val views: Int,
-        val price: Int,
-        val payment_until: String,
-        val banner_url: String,
-        val is_locked: Boolean,
-        val is_read: Boolean,
-    )
 
     companion object {
         private val SINOPSIS_REGEX = Regex("^SINOPSIS:?\\s*", RegexOption.IGNORE_CASE)
