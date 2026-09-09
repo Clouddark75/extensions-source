@@ -196,7 +196,6 @@ class JeazScans : HttpSource() {
         return fetchPagesFromApi(document)
     }
 
-
     override fun imageRequest(page: Page): Request {
         return GET(
             page.imageUrl!!,
