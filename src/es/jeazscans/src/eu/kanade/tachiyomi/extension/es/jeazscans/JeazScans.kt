@@ -72,22 +72,6 @@ class JeazScans : HttpSource() {
         return parseDirectory(response)
     }
 
-    override fun searchMangaRequest(
-        page: Int,
-        query: String,
-        filters: FilterList,
-    ): Request {
-        return directoryRequest(
-            page = page,
-            query = query,
-            filters = filters,
-        )
-    }
-
-    override fun searchMangaParse(response: Response): MangasPage {
-        return parseDirectory(response)
-    }
-
     override fun getFilterList(): FilterList {
         return FilterList(
             TypeFilter(),
@@ -510,9 +494,29 @@ class JeazScans : HttpSource() {
         }.getOrNull()
     }
 
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = if (query.isBlank()) {
+        latestUpdatesRequest(page)
+    } else {
+        val url = "$baseUrl/ajax_search.php".toHttpUrl().newBuilder()
+            .addQueryParameter("q", query.trim())
+            .build()
+        GET(url, headers)
+    }
+
+    override fun searchMangaParse(response: Response): MangasPage {
+        if (!response.request.url.encodedPath.endsWith("/ajax_search.php")) {
+            return latestUpdatesParse(response)
+        }
+
+        val items = response.parseAs<List<SearchResponseItem>>()
+        val mangas = items.mapNotNull { it.toSManga(baseUrl) }
+
+        return MangasPage(mangas, false)
+    }
+
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
-    private class TypeFilter : Filter.Select(
+    private class TypeFilter : Filter.Select<String>(
         "Tipo de proyecto",
         arrayOf(
             "Todos",
@@ -523,7 +527,7 @@ class JeazScans : HttpSource() {
         ),
     )
 
-    private class StatusFilter : Filter.Select(
+    private class StatusFilter : Filter.Select<String>(
         "Estado del proyecto",
         arrayOf(
             "Todos",
@@ -534,7 +538,7 @@ class JeazScans : HttpSource() {
         ),
     )
 
-    private class OrderFilter : Filter.Select(
+    private class OrderFilter : Filter.Select<String>(
         "Ordenar por",
         arrayOf(
             "actualizado",
