@@ -34,7 +34,7 @@ class JeazScans : HttpSource() {
     override val versionId = 2
 
     override val client: OkHttpClient = network.client.newBuilder()
-    .build()
+        .build()
 
     private val dateFormat by lazy {
         SimpleDateFormat("dd MMM, yyyy", Locale.US)
