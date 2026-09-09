@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.es.jeazscans
 
 import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
@@ -43,13 +44,131 @@ class JeazScans : HttpSource() {
     private var currentChapterUrl = baseUrl
 
     // The site migrated to custom home sections and PHP routes for search.
-    override fun popularMangaRequest(page: Int): Request =
-        GET(
-            "$baseUrl/directorio.php?page=$page",
-            headers,
+    override fun popularMangaRequest(page: Int): Request {
+        return directoryRequest(
+            page = page,
+            query = null,
+            filters = FilterList(),
         )
+    }
 
     override fun popularMangaParse(response: Response): MangasPage {
+        return parseDirectory(response)
+    }
+
+    override fun latestUpdatesRequest(page: Int): Request {
+        return directoryRequest(
+            page = page,
+            query = null,
+            filters = FilterList(
+                OrderFilter().apply {
+                    state = 0
+                },
+            ),
+        )
+    }
+
+    override fun latestUpdatesParse(response: Response): MangasPage {
+        return parseDirectory(response)
+    }
+
+    override fun searchMangaRequest(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): Request {
+        return directoryRequest(
+            page = page,
+            query = query,
+            filters = filters,
+        )
+    }
+
+    override fun searchMangaParse(response: Response): MangasPage {
+        return parseDirectory(response)
+    }
+
+    override fun getFilterList(): FilterList {
+        return FilterList(
+            TypeFilter(),
+            StatusFilter(),
+            OrderFilter(),
+            GenreFilter(),
+        )
+    }
+
+    private fun directoryRequest(
+        page: Int,
+        query: String?,
+        filters: FilterList,
+    ): Request {
+        val url = "$baseUrl/directorio.php"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("page", page.toString())
+
+        query
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                url.addQueryParameter("q", it.trim())
+            }
+
+        val type = filters
+            .filterIsInstance<TypeFilter>()
+            .firstOrNull()
+
+        if (type != null && type.state > 0) {
+            url.addQueryParameter(
+                "tipo",
+                type.values[type.state],
+            )
+        }
+
+        val status = filters
+            .filterIsInstance<StatusFilter>()
+            .firstOrNull()
+
+        if (status != null && status.state > 0) {
+            url.addQueryParameter(
+                "estado",
+                status.values[status.state],
+            )
+        }
+
+        val order = filters
+            .filterIsInstance<OrderFilter>()
+            .firstOrNull()
+
+        if (order != null) {
+            url.addQueryParameter(
+                "orden",
+                order.values[order.state],
+            )
+        } else {
+            url.addQueryParameter(
+                "orden",
+                "actualizado",
+            )
+        }
+
+        val genres = filters
+            .filterIsInstance<GenreFilter>()
+            .firstOrNull()
+
+        genres?.state?.forEach { index ->
+            url.addQueryParameter(
+                "generos[]",
+                genres.values[index],
+            )
+        }
+
+        return GET(
+            url.build(),
+            headers,
+        )
+    }
+
+    private fun parseDirectory(response: Response): MangasPage {
         val document = response.asJsoup()
 
         val mangas = document
@@ -57,6 +176,7 @@ class JeazScans : HttpSource() {
             .mapNotNull { element ->
 
                 val href = element.attr("abs:href")
+
                 if (href.isBlank()) {
                     return@mapNotNull null
                 }
@@ -65,14 +185,7 @@ class JeazScans : HttpSource() {
                     .selectFirst(".directory-card-title-row h3")
                     ?.text()
                     ?.trim()
-                    ?: element
-                        .attr("aria-label")
-                        .removePrefix("Abrir ")
-                        .trim()
-
-                if (title.isBlank()) {
-                    return@mapNotNull null
-                }
+                    ?: return@mapNotNull null
 
                 SManga.create().apply {
                     setUrlWithoutDomain(href)
@@ -89,7 +202,10 @@ class JeazScans : HttpSource() {
             .any { element ->
                 element
                     .attr("aria-label")
-                    .equals("Página siguiente", ignoreCase = true)
+                    .equals(
+                        "Página siguiente",
+                        ignoreCase = true,
+                    )
             }
 
         return MangasPage(
@@ -424,6 +540,104 @@ class JeazScans : HttpSource() {
     }
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
+
+    private class TypeFilter : Filter.Select(
+        "Tipo de proyecto",
+        arrayOf(
+            "Todos",
+            "manhua",
+            "manhwa",
+            "manga",
+            "novela",
+        ),
+    )
+
+    private class StatusFilter : Filter.Select(
+        "Estado del proyecto",
+        arrayOf(
+            "Todos",
+            "emision",
+            "finalizado",
+            "pausado",
+            "hiatus",
+        ),
+    )
+
+    private class OrderFilter : Filter.Select(
+        "Ordenar por",
+        arrayOf(
+            "actualizado",
+            "vistas",
+            "votos",
+            "nuevo",
+            "viejo",
+            "az",
+            "za",
+        ),
+    )
+
+    private class GenreFilter : Filter.Group<Filter.CheckBox>(
+        "Géneros",
+        listOf(
+            Filter.CheckBox("Acción"),
+            Filter.CheckBox("Artes marciales"),
+            Filter.CheckBox("Aventura"),
+            Filter.CheckBox("Cazadores"),
+            Filter.CheckBox("Ciencia Ficción"),
+            Filter.CheckBox("Comedia"),
+            Filter.CheckBox("Crimen"),
+            Filter.CheckBox("cultivacion"),
+            Filter.CheckBox("Cultivo"),
+            Filter.CheckBox("Demonios"),
+            Filter.CheckBox("Deportes"),
+            Filter.CheckBox("Drama"),
+            Filter.CheckBox("Ecchi"),
+            Filter.CheckBox("Escolar"),
+            Filter.CheckBox("Familia"),
+            Filter.CheckBox("Fantasía"),
+            Filter.CheckBox("Gore"),
+            Filter.CheckBox("Harem"),
+            Filter.CheckBox("harén"),
+            Filter.CheckBox("Histórico"),
+            Filter.CheckBox("Isekai"),
+            Filter.CheckBox("Josei"),
+            Filter.CheckBox("Magia"),
+            Filter.CheckBox("Manga"),
+            Filter.CheckBox("Manhua"),
+            Filter.CheckBox("Manhwa"),
+            Filter.CheckBox("Mecha"),
+            Filter.CheckBox("Militar"),
+            Filter.CheckBox("Misterio"),
+            Filter.CheckBox("Murim"),
+            Filter.CheckBox("Policiaco"),
+            Filter.CheckBox("Post-Apocalíptico"),
+            Filter.CheckBox("Psicológico"),
+            Filter.CheckBox("Realidad Virtual"),
+            Filter.CheckBox("Recuentos de la vida"),
+            Filter.CheckBox("Reencarnación"),
+            Filter.CheckBox("Regresión"),
+            Filter.CheckBox("Romance"),
+            Filter.CheckBox("Seinen"),
+            Filter.CheckBox("Shonen"),
+            Filter.CheckBox("Shoujo"),
+            Filter.CheckBox("Sistemas"),
+            Filter.CheckBox("Sobrenatural"),
+            Filter.CheckBox("Superpoderes"),
+            Filter.CheckBox("Supervivencia"),
+            Filter.CheckBox("Terror"),
+            Filter.CheckBox("Torre"),
+            Filter.CheckBox("Tragedia"),
+            Filter.CheckBox("Transmigración"),
+            Filter.CheckBox("Vampiros"),
+            Filter.CheckBox("Venganza"),
+            Filter.CheckBox("Viaje en el tiempo"),
+            Filter.CheckBox("Videojuegos"),
+            Filter.CheckBox("Wuxia"),
+            Filter.CheckBox("Xianxia"),
+            Filter.CheckBox("Xuanhuan"),
+            Filter.CheckBox("Zombies"),
+        ),
+    )
 
     companion object {
         private val SINOPSIS_REGEX = Regex("^SINOPSIS:?\\s*", RegexOption.IGNORE_CASE)
