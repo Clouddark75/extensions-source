@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension.es.jeazscans
 
 import android.util.Base64
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.interceptor.rateLimit
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
@@ -11,6 +12,11 @@ import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.nodes.Document
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -27,6 +33,9 @@ class JeazScans : HttpSource() {
     override val supportsLatest = true
 
     override val versionId = 2
+
+    override val client: OkHttpClient = network.client.newBuilder()
+    .build()
 
     private val dateFormat by lazy {
         SimpleDateFormat("dd MMM, yyyy", Locale.US)
