@@ -129,12 +129,14 @@ class JeazScans : HttpSource() {
             .filterIsInstance<GenreFilter>()
             .firstOrNull()
 
-        genres?.state?.forEach { index ->
-            url.addQueryParameter(
-                "generos[]",
-                genres.values[index],
-            )
-        }
+        genres?.state
+            ?.filter { it.state }
+            ?.forEach { checkbox ->
+                url.addQueryParameter(
+                    "generos[]",
+                    checkbox.name,
+                )
+            }
 
         return GET(
             url.build(),
