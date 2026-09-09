@@ -117,46 +117,15 @@ class JeazScans : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
-        val initialChapters = document.select(
-            "#chaptersContainer a[href*='ver_capitulo.php?id=']",
-        ).mapNotNull { element ->
-            val chapterUrl = element.attr("abs:href")
-            val chapterNumber = element.selectFirst(".release-chapter-number")
-                ?.text()
-                ?.replace(Regex("(?i)Capítulo\\s*"), "")
-                ?.trim()
-                ?.toFloatOrNull()
-                ?: CHAPTER_NUMBER_REGEX
-                    .find(chapterUrl)
-                    ?.groupValues
-                    ?.getOrNull(1)
-                    ?.toFloatOrNull()
-                ?: return@mapNotNull null
-
-            SChapter.create().apply {
-                setUrlWithoutDomain(chapterUrl)
-                chapter_number = chapterNumber
-
-                name = element.selectFirst(".release-chapter-number")
-                    ?.text()
-                    ?.trim()
-                    ?.ifEmpty { null }
-                    ?: "Chapter ${chapterNumber.toString().removeSuffix(".0")}"
-
-                date_upload = parseChapterDate(
-                    element.selectFirst(".chapter-date")?.text(),
-                )
-            }
-        }
-
         val mangaId = document.location()
             .toHttpUrlOrNull()
             ?.queryParameter("id")
             ?.toIntOrNull()
-            ?: return initialChapters
+            ?: throw Exception("Could not extract manga ID")
 
-        val apiChapters = mutableListOf<SChapter>()
-        var offset = 20
+        val chapters = mutableListOf<SChapter>()
+
+        var offset = 0
         var hasMore = true
 
         while (hasMore) {
@@ -164,7 +133,7 @@ class JeazScans : HttpSource() {
                 .newBuilder()
                 .addQueryParameter("manga_id", mangaId.toString())
                 .addQueryParameter("offset", offset.toString())
-                .addQueryParameter("limit", "20")
+                .addQueryParameter("limit", "30")
                 .addQueryParameter("orden", "desc")
                 .build()
 
@@ -177,38 +146,52 @@ class JeazScans : HttpSource() {
                 ),
             ).execute().use { apiResponse ->
                 if (!apiResponse.isSuccessful) {
-                    return@use null
+                    throw Exception("Chapter API HTTP error ${apiResponse.code}")
                 }
 
                 apiResponse.parseAs<ChapterApiResponse>()
             }
 
-            if (apiResponse == null) break
+            if (!apiResponse.success) {
+                throw Exception("Chapter API returned an error")
+            }
 
             apiResponse.chapters.forEach { chapter ->
-                val number = chapter.number.toFloatOrNull() ?: return@forEach
+                val chapterNumber = chapter.number.toFloatOrNull()
+                    ?: return@forEach
 
-                apiChapters += SChapter.create().apply {
+                chapters += SChapter.create().apply {
                     setUrlWithoutDomain(
                         "/ver_capitulo.php?id=${chapter.id}",
                     )
-                    chapter_number = number
+
+                    chapter_number = chapterNumber
+
                     name = chapter.title.ifBlank {
                         "Chapter ${chapter.number.removeSuffix(".0")}"
                     }
-                    date_upload = parseChapterDate(chapter.publishedAt)
+
+                    date_upload = parseChapterDate(chapter.published_at)
                 }
             }
-
-            hasMore = apiResponse.hasMore
-            offset = apiResponse.nextOffset
 
             if (apiResponse.chapters.isEmpty()) {
                 break
             }
+
+            hasMore = apiResponse.has_more
+
+            if (hasMore) {
+                offset = apiResponse.next_offset
+
+                // Protección contra una respuesta incorrecta de la API.
+                if (offset <= 0) {
+                    break
+                }
+            }
         }
 
-        return (initialChapters + apiChapters)
+        return chapters
             .distinctBy { it.url }
             .sortedByDescending { it.chapter_number }
     }
@@ -390,25 +373,16 @@ class JeazScans : HttpSource() {
 
     override fun imageUrlParse(response: Response) = throw UnsupportedOperationException()
 
-    companion object {
-        private val SINOPSIS_REGEX = Regex("^SINOPSIS:?\\s*", RegexOption.IGNORE_CASE)
-        private val CHAPTER_NUMBER_REGEX = Regex("capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
-        private val NUMBER_REGEX = Regex("""\d+""")
-        private val PATH_SLUG_CAP_REGEX = Regex("/leer/([^/]+)/capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
-        private val MANGA_SLUG_REGEX = Regex("""MANGA_SLUG\s*=\s*["']([^"']+)["']""")
-        private val CAP_INICIAL_REGEX = Regex("""CAP_INICIAL\s*=\s*["']([^"']+)["']""")
-    }
-
-    private data class ChapterApiResponse {
+    private data class ChapterApiResponse(
         val success: Boolean,
         val chapters: List<ChapterApiItem>,
         val has_more: Boolean,
         val next_offset: Int,
         val total_count: Int,
         val match_count: Int?,
-     } 
+    )
 
-    private data class ChapterApiItem {
+    private data class ChapterApiItem(
         val id: Int,
         val number: String,
         val title: String,
@@ -419,4 +393,13 @@ class JeazScans : HttpSource() {
         val banner_url: String,
         val is_locked: Boolean,
         val is_read: Boolean,
-     } 
+    )
+
+    companion object {
+        private val SINOPSIS_REGEX = Regex("^SINOPSIS:?\\s*", RegexOption.IGNORE_CASE)
+        private val CHAPTER_NUMBER_REGEX = Regex("capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
+        private val NUMBER_REGEX = Regex("""\d+""")
+        private val PATH_SLUG_CAP_REGEX = Regex("/leer/([^/]+)/capitulo-([0-9.]+)", RegexOption.IGNORE_CASE)
+        private val MANGA_SLUG_REGEX = Regex("""MANGA_SLUG\s*=\s*["']([^"']+)["']""")
+        private val CAP_INICIAL_REGEX = Regex("""CAP_INICIAL\s*=\s*["']([^"']+)["']""")
+    }
