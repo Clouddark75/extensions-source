@@ -43,46 +43,69 @@ class JeazScans : HttpSource() {
     private var currentChapterUrl = baseUrl
 
     // The site migrated to custom home sections and PHP routes for search.
-    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/", headers)
+    override fun popularMangaRequest(page: Int): Request =
+        GET(
+            "$baseUrl/directorio.php?page=$page",
+            headers,
+        )
 
     override fun popularMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select("section:has(h3:matchesOwn((?i)Top Rankings)) a[href*='manga.php?id=']").map { element ->
-            SManga.create().apply {
-                setUrlWithoutDomain(element.attr("abs:href"))
-                title = element.selectFirst("h4, h5")!!.text()
-                thumbnail_url = element.selectFirst("img")?.attr("abs:src")
+
+        val mangas = document
+            .select("a.directory-card[href*='manga.php?id=']")
+            .mapNotNull { element ->
+
+                val href = element.attr("abs:href")
+                if (href.isBlank()) {
+                    return@mapNotNull null
+                }
+
+                val title = element
+                    .selectFirst(".directory-card-title-row h3")
+                    ?.text()
+                    ?.trim()
+                    ?: element
+                        .attr("aria-label")
+                        .removePrefix("Abrir ")
+                        .trim()
+
+                if (title.isBlank()) {
+                    return@mapNotNull null
+                }
+
+                SManga.create().apply {
+                    setUrlWithoutDomain(href)
+                    this.title = title
+
+                    thumbnail_url = element
+                        .selectFirst(".directory-cover img")
+                        ?.attr("abs:src")
+                }
             }
-        }
-        return MangasPage(mangas, false)
+
+        val hasNextPage = document
+            .select("nav.directory-pagination a")
+            .any { element ->
+                element
+                    .attr("aria-label")
+                    .equals("Página siguiente", ignoreCase = true)
+            }
+
+        return MangasPage(
+            mangas,
+            hasNextPage,
+        )
     }
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/", headers)
+    override fun latestUpdatesRequest(page: Int): Request =
+        GET(
+            "$baseUrl/directorio.php?page=$page",
+            headers,
+        )
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        val document = response.asJsoup()
-
-        val mangas = document.select("article.release-card.manga-card").mapNotNull { element ->
-            val mangaLink = element.selectFirst("a.release-cover[href*='manga.php?id=']")
-                ?: element.selectFirst("a[href*='manga.php?id=']")
-                ?: return@mapNotNull null
-
-            val title = element.selectFirst("a.release-title")?.text()?.trim()
-                ?: mangaLink.selectFirst("img")?.attr("alt")?.trim()
-                ?: return@mapNotNull null
-
-            SManga.create().apply {
-                setUrlWithoutDomain(mangaLink.attr("abs:href"))
-                this.title = title
-
-                thumbnail_url = mangaLink
-                    .selectFirst("img")
-                    ?.attr("abs:src")
-            }
-        }
-
-        return MangasPage(mangas, false)
-    }
+    override fun latestUpdatesParse(response: Response): MangasPage =
+        popularMangaParse(response)
 
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
