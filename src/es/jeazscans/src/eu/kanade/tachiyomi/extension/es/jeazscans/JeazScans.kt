@@ -196,16 +196,20 @@ class JeazScans : HttpSource() {
         return fetchPagesFromApi(document)
     }
 
-    override fun imageRequest(page: Page): Request = GET(
-        page.imageUrl!!,
-        headers.newBuilder()
-            .set("Referer", page.url)
-            .set(
-                "Accept",
-                "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-            )
-            .build(),
-    )
+    override fun imageRequest(page: Page): Request {
+        val request = GET(
+            page.imageUrl!!,
+            headers.newBuilder()
+                .set("Referer", page.url)
+                .set(
+                    "Accept",
+                    "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                )
+                .build(),
+        )
+
+        return request
+    }
 
     private fun fetchPagesFromApi(document: Document): List<Page> {
         val (slug, cap) = extractSlugAndCap(document) ?: throw Exception("Could not extract slug/cap for API")
