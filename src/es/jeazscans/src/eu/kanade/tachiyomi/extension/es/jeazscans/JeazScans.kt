@@ -173,7 +173,7 @@ class JeazScans : HttpSource() {
     }
 
     override fun pageListParse(response: Response): List<Page> {
-        currentChapterUrl = document.location()
+        currentChapterUrl = response.request.url.toString()
 
         val document = response.asJsoup()
 
