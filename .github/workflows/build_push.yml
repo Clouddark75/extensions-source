@@ -88,7 +88,7 @@ jobs:
 
           ./gradlew "${TASKS[@]}"
 
-      - name: Upload APKs (${{ matrix.chunk.number }})
+      - name: Upload APK artifacts
         if: github.repository == 'Clouddark75/extensions-source'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -105,7 +105,7 @@ jobs:
           rm -f signingkey.jks
 
   publish:
-    name: Publish extension repo
+    name: Publish repo2
     needs: [prepare, build]
 
     if: >-
@@ -117,7 +117,7 @@ jobs:
       needs.prepare.outputs.delete != '[]'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
 
     steps:
       - name: Download APK artifacts
@@ -137,22 +137,28 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: repo2
-          path: repo
+          path: repo2
           persist-credentials: true
 
-      - name: Publish and deploy repo
+      - name: Publish repo2
         env:
           DELETE: ${{ needs.prepare.outputs.delete }}
-          GH_TOKEN: ${{ github.token }}
         run: |
-          cd repo
+          MAIN_DIR="${GITHUB_WORKSPACE}/main"
+          REPO_DIR="${GITHUB_WORKSPACE}/repo2"
 
-          pip install protobuf
+          cd "$MAIN_DIR"
 
-          python -u ../main/.github/scripts/publish-repo.py "$DELETE" "$GITHUB_SHA"
+          python -u .github/scripts/publish-repo.py \
+            "$DELETE" \
+            "$GITHUB_SHA" \
+            "$REPO_DIR"
 
-          git config --global user.email "156378334+keiyoushi-bot@users.noreply.github.com"
-          git config --global user.name "keiyoushi-bot"
+      - name: Commit repo2
+        working-directory: repo2
+        run: |
+          git config user.email "156378334+keiyoushi-bot@users.noreply.github.com"
+          git config user.name "keiyoushi-bot"
 
           git status
 
@@ -160,9 +166,11 @@ jobs:
             git add .
             git commit -m "Update extensions repo"
             git push
-
-            curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.json
-            curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.pb
           else
             echo "No changes to commit"
           fi
+
+      - name: Purge jsDelivr cache
+        run: |
+          curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.json
+          curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.min.json
