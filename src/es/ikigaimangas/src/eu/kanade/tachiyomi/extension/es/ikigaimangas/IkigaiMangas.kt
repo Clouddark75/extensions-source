@@ -317,12 +317,14 @@ abstract class IkigaiMangas :
     override fun pageListParse(response: Response): List<Page> {
         val request = response.request
         var document = response.asJsoup()
+
         document.selectFirst("button > span:contains(permitir nsfw)")?.let {
             val newRequest = request.newBuilder()
                 .enableNsfw(true)
                 .build()
             document = client.newCall(newRequest).execute().asJsoup()
         }
+
         return document.select("section div > img")
             .filterNot { element ->
                 element.attr("abs:src")
@@ -332,6 +334,7 @@ abstract class IkigaiMangas :
             }
             .mapIndexed { i, element ->
                 Page(i, imageUrl = element.attr("abs:src"))
+            }
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
