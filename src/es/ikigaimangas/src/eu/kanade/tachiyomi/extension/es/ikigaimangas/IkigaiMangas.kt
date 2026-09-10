@@ -19,9 +19,9 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.annotation.Source
 import keiyoushi.utils.applicationContext
-import keiyoushi.utils.asJsoup
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
@@ -323,9 +323,15 @@ abstract class IkigaiMangas :
                 .build()
             document = client.newCall(newRequest).execute().asJsoup()
         }
-        return document.select("section div > img").mapIndexed { i, element ->
-            Page(i, imageUrl = element.attr("abs:src"))
-        }
+        return document.select("section div > img")
+            .filterNot { element ->
+                element.attr("abs:src")
+                    .substringBefore("?")
+                    .substringAfterLast("/")
+                    .equals("bannerikigai.png", ignoreCase = true)
+            }
+            .mapIndexed { i, element ->
+                Page(i, imageUrl = element.attr("abs:src"))
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
