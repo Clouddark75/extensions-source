@@ -20,7 +20,6 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.annotation.Source
-import keiyoushi.network.rateLimit
 import keiyoushi.utils.applicationContext
 import keiyoushi.utils.asJsoup
 import keiyoushi.utils.getPreferences
@@ -38,14 +37,11 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class IkigaiMangas :
     HttpSource(),
     ConfigurableSource {
-
-    private val baseUrlHost by lazy { baseUrl.toHttpUrl().host }
 
     private var shouldFetchDomain = true
     private fun fetchDomainUrl() {
@@ -74,7 +70,6 @@ abstract class IkigaiMangas :
         fetchDomainUrl()
         network.client.newBuilder()
             .addNetworkInterceptor(::nsfwCookieInterceptor)
-            .rateLimit(1, 2.seconds) { it.host == baseUrlHost }
             .build()
     }
 
