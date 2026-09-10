@@ -6,6 +6,8 @@ import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.network.GET
@@ -20,7 +22,6 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.annotation.Source
 import keiyoushi.utils.applicationContext
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
@@ -38,31 +39,45 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-@Source
-abstract class IkigaiMangas :
+class IkigaiMangas :
     HttpSource(),
     ConfigurableSource {
 
-    private var shouldFetchDomain = true
-    private fun fetchDomainUrl() {
-        if (!shouldFetchDomain) return
-        shouldFetchDomain = false
-        if (!preferences.fetchDomainPref()) return
+    override val versionId = 2
+
+    private val isCi = System.getenv("CI") == "true"
+
+    override val baseUrl get() = when {
+        isCi -> defaultBaseUrl
+        else -> preferences.prefBaseUrl
+    }
+
+    private val defaultBaseUrl: String = "https://zonaikigai.gamesview.shop"
+
+    private val fetchedDomainUrl: String by lazy {
+        if (!preferences.fetchDomainPref()) return@lazy preferences.prefBaseUrl
         try {
             val initClient = network.client
             val headers = super.headersBuilder().build()
             val document = initClient.newCall(GET("https://ikigaimangas.com", headers)).execute().asJsoup()
             val scriptUrl = document.selectFirst("button[on:click]:containsOwn(Ir al sitio)")?.attr("on:click")
-                ?: return
+                ?: return@lazy preferences.prefBaseUrl
             val script = initClient.newCall(GET("https://ikigaimangas.com/build/$scriptUrl", headers)).execute().body.string()
             val domain = script.substringAfter("i(\"").substringBefore("\"")
             val host = initClient.newCall(GET(domain, headers)).execute().request.url.host
             val newDomain = "https://$host"
-            preferences.edit().putString(BASE_URL_PREF, newDomain).apply()
-        } catch (_: Exception) {}
+            preferences.prefBaseUrl = newDomain
+            newDomain
+        } catch (e: Exception) {
+            preferences.prefBaseUrl
+        }
     }
 
     private val imageCdnUrl: String = "https://image2.ikigaimangas.cloud"
+
+    override val lang: String = "es"
+
+    override val name: String = "Ikigai Mangas"
 
     override val supportsLatest: Boolean = true
 
@@ -101,10 +116,19 @@ abstract class IkigaiMangas :
         return this.header("Cookie", mergedHeader)
     }
 
-    private val preferences = getPreferences()
+    private val preferences: SharedPreferences = getPreferences {
+        this.getString(DEFAULT_BASE_URL_PREF, null).let { domain ->
+            if (domain != defaultBaseUrl) {
+                this.edit()
+                    .putString(BASE_URL_PREF, defaultBaseUrl)
+                    .putString(DEFAULT_BASE_URL_PREF, defaultBaseUrl)
+                    .apply()
+            }
+        }
+    }
 
     override fun headersBuilder() = super.headersBuilder()
-        .set("Referer", "$baseUrl/")
+        .set("Referer", "$fetchedDomainUrl/")
         .set("Sec-Fetch-Dest", "document")
         .set("Sec-Fetch-Mode", "navigate")
         .set("Sec-Fetch-Site", "cross-site")
@@ -117,7 +141,7 @@ abstract class IkigaiMangas :
             .enableNsfw(preferences.showNsfwPref)
             .build()
 
-        return GET("$baseUrl/clasificacion/", headers)
+        return GET("$fetchedDomainUrl/clasificacion/", headers)
     }
 
     override fun popularMangaParse(response: Response): MangasPage {
@@ -138,7 +162,7 @@ abstract class IkigaiMangas :
             .enableNsfw(preferences.showNsfwPref)
             .build()
 
-        return GET("$baseUrl/?pagina=$page", headers)
+        return GET("$fetchedDomainUrl/?pagina=$page", headers)
     }
 
     override fun latestUpdatesParse(response: Response): MangasPage {
@@ -175,7 +199,7 @@ abstract class IkigaiMangas :
     }
 
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
-        val url = "$baseUrl/series/".toHttpUrl().newBuilder()
+        val url = "$fetchedDomainUrl/series/".toHttpUrl().newBuilder()
 
         url.addQueryParameter("tipos[]", "comic")
 
@@ -213,7 +237,7 @@ abstract class IkigaiMangas :
     }
 
     private fun getQuerySeriesList(): List<QwikSeriesDto> {
-        fetchDomainUrl()
+        val baseUrl = preferences.prefBaseUrl
         val qfunc = getQfuncFromWebView(baseUrl, headers) ?: throw Exception("Ocurrio un error al obtener la lista de series")
         val url = baseUrl.toHttpUrl().newBuilder()
             .addQueryParameter("qfunc", qfunc)
@@ -257,9 +281,9 @@ abstract class IkigaiMangas :
         return MangasPage(pagedSeries, filteredSeries.size > page * PAGE_SIZE)
     }
 
-    override fun getMangaUrl(manga: SManga) = "$baseUrl/series/${manga.url}/"
+    override fun getMangaUrl(manga: SManga) = "$fetchedDomainUrl/series/${manga.url}/"
 
-    override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl/series/${manga.url}/", headers)
+    override fun mangaDetailsRequest(manga: SManga): Request = GET("$fetchedDomainUrl/series/${manga.url}/", headers)
 
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
@@ -282,7 +306,7 @@ abstract class IkigaiMangas :
         else -> SManga.UNKNOWN
     }
 
-    override fun getChapterUrl(chapter: SChapter) = baseUrl + chapter.url
+    override fun getChapterUrl(chapter: SChapter) = fetchedDomainUrl + chapter.url
 
     override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
         val chapterList = mutableListOf<SChapter>()
@@ -299,7 +323,7 @@ abstract class IkigaiMangas :
     }
 
     private fun chapterListRequest(slug: String, page: Int): Request {
-        val url = "$baseUrl/series/$slug/".toHttpUrl().newBuilder()
+        val url = "$fetchedDomainUrl/series/$slug/".toHttpUrl().newBuilder()
             .addQueryParameter("pagina", page.toString())
             .build()
         return GET(url, headers)
@@ -312,7 +336,7 @@ abstract class IkigaiMangas :
         date_upload = dateFormat.tryParse(dateString)
     }
 
-    override fun pageListRequest(chapter: SChapter): Request = GET(baseUrl + chapter.url, headers)
+    override fun pageListRequest(chapter: SChapter): Request = GET(fetchedDomainUrl + chapter.url, headers)
 
     override fun pageListParse(response: Response): List<Page> {
         val request = response.request
@@ -362,9 +386,28 @@ abstract class IkigaiMangas :
             summary = "Intenta buscar el dominio automáticamente al abrir la fuente."
             setDefaultValue(true)
         }.also { screen.addPreference(it) }
+
+        EditTextPreference(screen.context).apply {
+            key = BASE_URL_PREF
+            title = "Editar URL de la fuente"
+            summary = "Para uso temporal, si la extensión se actualiza se perderá el cambio."
+            dialogTitle = "Editar URL de la fuente"
+            dialogMessage = "URL por defecto:\n$defaultBaseUrl"
+            setDefaultValue(defaultBaseUrl)
+            setOnPreferenceChangeListener { _, _ ->
+                Toast.makeText(screen.context, "Reinicie la aplicación para aplicar los cambios", Toast.LENGTH_LONG).show()
+                true
+            }
+        }.also { screen.addPreference(it) }
     }
 
     private fun SharedPreferences.fetchDomainPref() = getBoolean(FETCH_DOMAIN_PREF, true)
+
+    private var SharedPreferences.prefBaseUrl: String
+        get() = getString(BASE_URL_PREF, defaultBaseUrl)!!
+        set(value) {
+            edit().putString(BASE_URL_PREF, value).apply()
+        }
 
     private var SharedPreferences.showNsfwPref: Boolean
         get() = getBoolean(SHOW_NSFW_PREF, false)
@@ -476,8 +519,12 @@ abstract class IkigaiMangas :
 
     companion object {
         private const val SHOW_NSFW_PREF = "pref_show_nsfw"
+
         private const val BASE_URL_PREF = "overrideBaseUrl"
+        private const val DEFAULT_BASE_URL_PREF = "defaultBaseUrl"
+
         private const val FETCH_DOMAIN_PREF = "fetchDomain"
+
         private const val PAGE_SIZE = 20
         private const val ENABLE_NSFW_HEADER = "X-Add-Nsfw-Cookie"
     }
