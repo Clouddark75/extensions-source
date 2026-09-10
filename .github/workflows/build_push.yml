@@ -80,19 +80,29 @@ jobs:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          ./gradlew $MODULES
+          TASKS=()
+
+          for module in $MODULES; do
+            TASKS+=("${module}:assembleRelease")
+          done
+
+          ./gradlew "${TASKS[@]}"
 
       - name: Upload APKs (${{ matrix.chunk.number }})
         if: github.repository == 'Clouddark75/extensions-source'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
-          path: "**/*.apk"
+          path: |
+            **/build/outputs/apk/release/*.apk
+            **/build/outputs/jar/release/*.jar
+            **/build/keiyoushi-source-info.json
           retention-days: 1
 
       - name: Clean up CI files
         if: always()
-        run: rm -f signingkey.jks
+        run: |
+          rm -f signingkey.jks
 
   publish:
     name: Publish extension repo
@@ -105,7 +115,7 @@ jobs:
 
     steps:
       - name: Download APK artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@3e5f45e5cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: ~/apk-artifacts
 
