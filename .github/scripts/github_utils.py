@@ -1,7 +1,7 @@
 import subprocess
 import time
 
-REPO_NAME = "Clouddark75/repo2"
+REPO_NAME = "Clouddark75/extensions-source"
 RETRY_ATTEMPTS = 4
 RETRY_BASE_DELAY = 60
 
