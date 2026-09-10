@@ -19,10 +19,9 @@ import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.annotation.Source
-import keiyoushi.network.rateLimit
 import keiyoushi.utils.applicationContext
-import keiyoushi.utils.asJsoup
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.tryParse
@@ -38,14 +37,11 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class IkigaiMangas :
     HttpSource(),
     ConfigurableSource {
-
-    private val baseUrlHost by lazy { baseUrl.toHttpUrl().host }
 
     private var shouldFetchDomain = true
     private fun fetchDomainUrl() {
@@ -74,7 +70,6 @@ abstract class IkigaiMangas :
         fetchDomainUrl()
         network.client.newBuilder()
             .addNetworkInterceptor(::nsfwCookieInterceptor)
-            .rateLimit(1, 2.seconds) { it.host == baseUrlHost }
             .build()
     }
 
@@ -110,6 +105,10 @@ abstract class IkigaiMangas :
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/")
+        .set("Sec-Fetch-Dest", "document")
+        .set("Sec-Fetch-Mode", "navigate")
+        .set("Sec-Fetch-Site", "cross-site")
+        .set("Sec-Fetch-User", "?1")
 
     private val dateFormat = SimpleDateFormat("EEE MMM dd yyyy HH:mm:ss 'GMT'Z", Locale.ENGLISH)
 
@@ -318,15 +317,24 @@ abstract class IkigaiMangas :
     override fun pageListParse(response: Response): List<Page> {
         val request = response.request
         var document = response.asJsoup()
+
         document.selectFirst("button > span:contains(permitir nsfw)")?.let {
             val newRequest = request.newBuilder()
                 .enableNsfw(true)
                 .build()
             document = client.newCall(newRequest).execute().asJsoup()
         }
-        return document.select("section div.img > img").mapIndexed { i, element ->
-            Page(i, imageUrl = element.attr("abs:src"))
-        }
+
+        return document.select("section div > img")
+            .filterNot { element ->
+                element.attr("abs:src")
+                    .substringBefore("?")
+                    .substringAfterLast("/")
+                    .equals("bannerikigai.png", ignoreCase = true)
+            }
+            .mapIndexed { i, element ->
+                Page(i, imageUrl = element.attr("abs:src"))
+            }
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
