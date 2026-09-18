@@ -352,11 +352,16 @@ abstract class IkigaiMangas :
     override fun imageRequest(page: Page): Request {
         val imageHeaders = super.headersBuilder()
             .set("User-Agent", headers["User-Agent"] ?: "")
-            .set("Referer", "$baseUrl/")
             .set(
                 "Accept",
-                "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                "text/html,application/xhtml+xml,application/xml;q=0.9," +
+                    "image/avif,image/webp,image/apng,*/*;q=0.8",
             )
+            .set("Sec-Fetch-Dest", "document")
+            .set("Sec-Fetch-Mode", "navigate")
+            .set("Sec-Fetch-Site", "none")
+            .set("Sec-Fetch-User", "?1")
+            .set("Upgrade-Insecure-Requests", "1")
             .build()
 
         return GET(page.imageUrl!!, imageHeaders)
