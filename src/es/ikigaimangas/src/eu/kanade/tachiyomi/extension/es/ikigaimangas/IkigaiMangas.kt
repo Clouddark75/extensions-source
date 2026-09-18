@@ -350,19 +350,16 @@ abstract class IkigaiMangas :
     }
 
     override fun imageRequest(page: Page): Request {
-        val imageHeaders = headersBuilder()
+        val imageHeaders = super.headersBuilder()
+            .set("User-Agent", headers["User-Agent"] ?: "")
+            .set("Referer", "$baseUrl/")
             .set(
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             )
-            .set("Referer", "$baseUrl/")
             .build()
 
-        return Request.Builder()
-            .url(page.imageUrl!!)
-            .headers(imageHeaders)
-            .get()
-            .build()
+        return GET(page.imageUrl!!, imageHeaders)
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
