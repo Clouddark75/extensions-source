@@ -105,10 +105,6 @@ abstract class IkigaiMangas :
 
     override fun headersBuilder() = super.headersBuilder()
         .set("Referer", "$baseUrl/")
-        .set("Sec-Fetch-Dest", "document")
-        .set("Sec-Fetch-Mode", "navigate")
-        .set("Sec-Fetch-Site", "cross-site")
-        .set("Sec-Fetch-User", "?1")
 
     private val dateFormat = SimpleDateFormat("EEE MMM dd yyyy HH:mm:ss 'GMT'Z", Locale.ENGLISH)
 
@@ -312,7 +308,13 @@ abstract class IkigaiMangas :
         date_upload = dateFormat.tryParse(dateString)
     }
 
-    override fun pageListRequest(chapter: SChapter): Request = GET(baseUrl + chapter.url, headers)
+    override fun pageListRequest(chapter: SChapter): Request =
+        GET(
+            baseUrl + chapter.url,
+            headersBuilder()
+                .enableNsfw(preferences.showNsfwPref)
+                .build(),
+        )
 
     override fun pageListParse(response: Response): List<Page> {
         val request = response.request
@@ -322,6 +324,7 @@ abstract class IkigaiMangas :
             val newRequest = request.newBuilder()
                 .enableNsfw(true)
                 .build()
+
             document = client.newCall(newRequest).execute().asJsoup()
         }
 
@@ -336,7 +339,10 @@ abstract class IkigaiMangas :
                     imageName.equals("chapter-ad-banner.png", ignoreCase = true)
             }
             .mapIndexed { i, element ->
-                Page(i, imageUrl = element.attr("abs:src"))
+                Page(
+                    i,
+                    imageUrl = element.attr("abs:src"),
+                )
             }
     }
 
