@@ -308,13 +308,12 @@ abstract class IkigaiMangas :
         date_upload = dateFormat.tryParse(dateString)
     }
 
-    override fun pageListRequest(chapter: SChapter): Request =
-        GET(
-            baseUrl + chapter.url,
-            headersBuilder()
-                .enableNsfw(preferences.showNsfwPref)
-                .build(),
-        )
+    override fun pageListRequest(chapter: SChapter): Request = GET(
+        baseUrl + chapter.url,
+        headersBuilder()
+            .enableNsfw(preferences.showNsfwPref)
+            .build(),
+    )
 
     override fun pageListParse(response: Response): List<Page> {
         val request = response.request
