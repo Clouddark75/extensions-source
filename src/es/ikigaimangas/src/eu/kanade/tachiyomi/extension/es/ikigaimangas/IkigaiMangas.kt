@@ -327,10 +327,13 @@ abstract class IkigaiMangas :
 
         return document.select("section div > img")
             .filterNot { element ->
-                element.attr("abs:src")
+                val imageName = element.attr("abs:src")
                     .substringBefore("?")
                     .substringAfterLast("/")
-                    .equals("bannerikigai.png", ignoreCase = true)
+
+                imageName.equals("bannerikigai.png", ignoreCase = true) ||
+                    imageName.equals("bannermartial.png", ignoreCase = true) ||
+                    imageName.equals("chapter-ad-banner.png", ignoreCase = true)
             }
             .mapIndexed { i, element ->
                 Page(i, imageUrl = element.attr("abs:src"))
