@@ -2,12 +2,21 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      build_mode:
+        description: "Choose which extensions to compile"
+        required: true
+        type: choice
+        default: updated
+        options:
+          - updated
+          - all
 
 permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -25,22 +34,50 @@ jobs:
       delete: ${{ steps.generate-matrices.outputs.delete }}
 
     steps:
-      - name: Checkout M5
+      - name: Checkout selected branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: M5
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Get last successful CI commit
+        if: inputs.build_mode == 'updated'
         uses: nrwl/nx-set-shas@afb73a62d26e41464e9254689e1fd6122ee683c1 # v5.0.1
         with:
           fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904 # empty tree
 
+      - name: Select build reference
+        run: |
+          if [ "${{ inputs.build_mode }}" = "all" ]; then
+            echo "BUILD_REF=4b825dc642cb6eb9a060e54bf8d69288fbee4904" >> "$GITHUB_ENV"
+
+            echo "========================================"
+            echo "Build mode: ALL"
+            echo "Build reference: empty tree"
+            echo "========================================"
+          else
+            echo "BUILD_REF=$NX_BASE" >> "$GITHUB_ENV"
+
+            echo "========================================"
+            echo "Build mode: UPDATED"
+            echo "Build reference: $NX_BASE"
+            echo "========================================"
+          fi
+
       - id: generate-matrices
         name: Create output matrices
         run: |
-          python ./.github/scripts/generate-build-matrices.py "$NX_BASE"
+          echo "========================================"
+          echo "Generating build matrix"
+          echo "========================================"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Build mode: ${{ inputs.build_mode }}"
+          echo "Build reference: $BUILD_REF"
+          echo "========================================"
+
+          python ./.github/scripts/generate-build-matrices.py \
+            "$BUILD_REF"
 
   build:
     name: Build extensions (${{ matrix.chunk.number }})
@@ -51,13 +88,14 @@ jobs:
     if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
 
     strategy:
+      fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
-      - name: Checkout M5
+      - name: Checkout selected branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: M5
+          ref: ${{ github.ref_name }}
           persist-credentials: false
 
       - name: Set up Java
@@ -82,14 +120,20 @@ jobs:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          echo "========================================"
+          echo "Building chunk ${{ matrix.chunk.number }}"
+          echo "========================================"
+
           TASKS=()
 
           for module in $MODULES; do
             TASKS+=("${module}:assembleRelease")
           done
 
-          echo "Building Gradle tasks:"
+          echo "Gradle tasks:"
           printf '%s\n' "${TASKS[@]}"
+
+          echo "========================================"
 
           ./gradlew "${TASKS[@]}"
 
@@ -132,10 +176,10 @@ jobs:
         with:
           path: ~/apk-artifacts
 
-      - name: Checkout M5
+      - name: Checkout selected branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: M5
+          ref: ${{ github.ref_name }}
           path: M5
           persist-credentials: false
 
@@ -151,20 +195,13 @@ jobs:
           DELETE: ${{ needs.prepare.outputs.delete }}
         run: |
           echo "========================================"
-          echo "Publishing extensions to repo2"
+          echo "Publishing extensions"
           echo "========================================"
 
-          echo "M5:"
-          echo "$GITHUB_WORKSPACE/M5"
-
-          echo "repo2:"
-          echo "$GITHUB_WORKSPACE/repo2"
-
-          echo "Artifacts:"
-          echo "$HOME/apk-artifacts"
-
-          echo "Delete list:"
-          echo "$DELETE"
+          echo "Source branch: ${{ github.ref_name }}"
+          echo "Build mode: ${{ inputs.build_mode }}"
+          echo "Artifacts: $HOME/apk-artifacts"
+          echo "Delete list: $DELETE"
 
           echo "========================================"
 
