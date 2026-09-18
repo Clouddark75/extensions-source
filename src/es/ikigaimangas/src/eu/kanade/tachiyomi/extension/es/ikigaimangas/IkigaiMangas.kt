@@ -331,15 +331,6 @@ abstract class IkigaiMangas :
             document = client.newCall(newRequest).execute().asJsoup()
         }
 
-        val imageHeaders = Headers.Builder()
-            .set("User-Agent", headers["User-Agent"] ?: "")
-            .set("Referer", "$baseUrl/")
-            .set(
-                "Accept",
-                "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-            )
-            .build()
-
         return document.select("section div > img")
             .filterNot { element ->
                 val imageName = element.attr("abs:src")
@@ -354,9 +345,24 @@ abstract class IkigaiMangas :
                 Page(
                     i,
                     imageUrl = element.attr("abs:src"),
-                    headers = imageHeaders,
                 )
             }
+    }
+
+    override fun imageRequest(page: Page): Request {
+        val imageHeaders = headersBuilder()
+            .set(
+                "Accept",
+                "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            )
+            .set("Referer", "$baseUrl/")
+            .build()
+
+        return Request.Builder()
+            .url(page.imageUrl!!)
+            .headers(imageHeaders)
+            .get()
+            .build()
     }
 
     override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
