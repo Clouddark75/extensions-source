@@ -339,7 +339,9 @@ abstract class IkigaiMangas :
 
                 imageName.equals("bannerikigai.png", ignoreCase = true) ||
                     imageName.equals("bannermartial.png", ignoreCase = true) ||
-                    imageName.equals("chapter-ad-banner.png", ignoreCase = true)
+                    imageName.equals("chapter-ad-banner.png", ignoreCase = true) ||
+                    imageName.equals("BannerConcursoTiktok.jpg", ignoreCase = true) ||
+                    imageName.equals("BannerSubs.jpg", ignoreCase = true)
             }
             .mapIndexed { i, element ->
                 Page(
