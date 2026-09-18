@@ -25,9 +25,10 @@ jobs:
       delete: ${{ steps.generate-matrices.outputs.delete }}
 
     steps:
-      - name: Checkout main branch
+      - name: Checkout M5
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: M5
           fetch-depth: 0
           persist-credentials: false
 
@@ -53,9 +54,10 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
-      - name: Checkout main branch
+      - name: Checkout M5
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: M5
           persist-credentials: false
 
       - name: Set up Java
@@ -86,13 +88,16 @@ jobs:
             TASKS+=("${module}:assembleRelease")
           done
 
+          echo "Building Gradle tasks:"
+          printf '%s\n' "${TASKS[@]}"
+
           ./gradlew "${TASKS[@]}"
 
       - name: Upload APK artifacts
         if: github.repository == 'Clouddark75/extensions-source'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: "individual-apks-${{ matrix.chunk.number }}"
+          name: individual-apks-${{ matrix.chunk.number }}
           path: |
             **/build/outputs/apk/release/*.apk
             **/build/outputs/jar/release/*.jar
@@ -106,15 +111,16 @@ jobs:
 
   publish:
     name: Publish repo2
-    needs: [prepare, build]
+    needs:
+      - prepare
+      - build
 
     if: >-
       always() &&
       github.repository == 'Clouddark75/extensions-source' &&
       needs.prepare.result == 'success' &&
       needs.build.result != 'failure' &&
-      needs.build.result != 'cancelled' &&
-      needs.prepare.outputs.delete != '[]'
+      needs.build.result != 'cancelled'
 
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -126,33 +132,47 @@ jobs:
         with:
           path: ~/apk-artifacts
 
-      - name: Checkout main branch
+      - name: Checkout M5
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
-          path: main
+          ref: M5
+          path: M5
           persist-credentials: false
 
-      - name: Checkout repo2 branch
+      - name: Checkout repo2
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: repo2
           path: repo2
           persist-credentials: true
 
-      - name: Publish repo2
+      - name: Publish repository
         env:
           DELETE: ${{ needs.prepare.outputs.delete }}
         run: |
-          MAIN_DIR="${GITHUB_WORKSPACE}/main"
-          REPO_DIR="${GITHUB_WORKSPACE}/repo2"
+          echo "========================================"
+          echo "Publishing extensions to repo2"
+          echo "========================================"
 
-          cd "$MAIN_DIR"
+          echo "M5:"
+          echo "$GITHUB_WORKSPACE/M5"
 
-          python -u .github/scripts/publish-repo.py \
+          echo "repo2:"
+          echo "$GITHUB_WORKSPACE/repo2"
+
+          echo "Artifacts:"
+          echo "$HOME/apk-artifacts"
+
+          echo "Delete list:"
+          echo "$DELETE"
+
+          echo "========================================"
+
+          python -u \
+            "$GITHUB_WORKSPACE/M5/.github/scripts/publish-repo.py" \
             "$DELETE" \
             "$GITHUB_SHA" \
-            "$REPO_DIR"
+            "$GITHUB_WORKSPACE/repo2"
 
       - name: Commit repo2
         working-directory: repo2
@@ -160,17 +180,37 @@ jobs:
           git config user.email "156378334+keiyoushi-bot@users.noreply.github.com"
           git config user.name "keiyoushi-bot"
 
-          git status
+          echo "========================================"
+          echo "repo2 status"
+          echo "========================================"
+
+          git status --short
 
           if [ -n "$(git status --porcelain)" ]; then
-            git add .
+            echo "Changes detected."
+
+            git add apk/
+            git add icon/
+            git add index.json
+            git add index.min.json
+            git add index.html
+
             git commit -m "Update extensions repo"
-            git push
+
+            git push origin repo2
           else
-            echo "No changes to commit"
+            echo "No changes to commit."
           fi
 
       - name: Purge jsDelivr cache
         run: |
-          curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.json
-          curl -fsS https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.min.json
+          echo "Purging jsDelivr cache..."
+
+          curl -fsS \
+            "https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.json"
+
+          curl -fsS \
+            "https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo2/index.min.json"
+
+          echo
+          echo "jsDelivr cache purge completed."
