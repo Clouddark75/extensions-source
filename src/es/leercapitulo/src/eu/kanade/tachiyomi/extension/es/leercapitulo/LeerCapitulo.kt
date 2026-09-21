@@ -226,37 +226,29 @@ class LeerCapitulo : HttpSource() {
             }
     }
 
-    override fun imageUrlParse(response: Response): String {
+    override fun imageUrlParse(response: Response): String =
         throw UnsupportedOperationException()
-    }
 
-    private fun Document.factValue(label: String): String? {
-        return select(".lc-facts li")
-            .firstOrNull {
-                it.selectFirst(".k")?.text()?.trim() == label
-            }
-            ?.text()
-            ?.removePrefix(label)
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-    }
-
-    private fun String.toDate(): Long {
-        return runCatching {
-            SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                .parse(this)
-                ?.time
-                ?: 0L
-        }.getOrDefault(0L)
-    }
-
-    private fun String.toStatus(): Int {
-        return when (lowercase(Locale.US)) {
-            "ongoing" -> SManga.ONGOING
-            "completed" -> SManga.COMPLETED
-            "paused" -> SManga.ON_HIATUS
-            "cancelled" -> SManga.CANCELLED
-            else -> SManga.UNKNOWN
+    private fun Document.factValue(label: String): String? = select(".lc-facts li")
+        .firstOrNull {
+            it.selectFirst(".k")?.text()?.trim() == label
         }
+        ?.text()
+        ?.removePrefix(label)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+    private fun String.toDate(): Long = runCatching {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            .parse(this)
+            ?.time
+            ?: 0L
+    }.getOrDefault(0L)
+
+    private fun String.toStatus(): Int = when (lowercase(Locale.US)) {
+        "ongoing" -> SManga.ONGOING
+        "completed" -> SManga.COMPLETED
+        "paused" -> SManga.ON_HIATUS
+        "cancelled" -> SManga.CANCELLED
+        else -> SManga.UNKNOWN
     }
-}
