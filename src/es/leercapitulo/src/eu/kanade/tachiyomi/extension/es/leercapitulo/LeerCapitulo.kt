@@ -66,8 +66,6 @@ class LeerCapitulo : HttpSource() {
         return MangasPage(mangas, hasNextPage)
     }
 
-    override fun latestUpdatesParse(response: Response): MangasPage = parseMangaList(response)
-
     private fun catalogRequest(page: Int): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
             .addPathSegment("manga")
