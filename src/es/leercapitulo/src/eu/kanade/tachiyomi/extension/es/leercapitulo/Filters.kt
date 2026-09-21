@@ -177,7 +177,8 @@ open class UriPartFilter(
     vals.map { it.first }.toTypedArray(),
 ) {
     fun toUriPart(): String = vals[state].second
-}open class UriPartFilter(
+}
+open class UriPartFilter(
     displayName: String,
     private val vals: Array<Pair<String, String>>,
 ) : Filter.Select<String>(
