@@ -178,6 +178,7 @@ open class UriPartFilter(
 ) {
     fun toUriPart(): String = vals[state].second
 }
+
 open class UriPartFilter(
     displayName: String,
     private val vals: Array<Pair<String, String>>,
