@@ -226,8 +226,7 @@ class LeerCapitulo : HttpSource() {
             }
     }
 
-    override fun imageUrlParse(response: Response): String =
-        throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
 
     private fun Document.factValue(label: String): String? = select(".lc-facts li")
         .firstOrNull {
