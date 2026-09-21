@@ -14,7 +14,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -29,21 +28,13 @@ class LeerCapitulo : HttpSource() {
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
 
-    override fun popularMangaRequest(page: Int): Request {
-        return catalogRequest(page)
-    }
+    override fun popularMangaRequest(page: Int): Request = catalogRequest(page)
 
-    override fun popularMangaParse(response: Response): MangasPage {
-        return parseMangaList(response)
-    }
+    override fun popularMangaParse(response: Response): MangasPage = parseMangaList(response)
 
-    override fun latestUpdatesRequest(page: Int): Request {
-        return catalogRequest(page)
-    }
+    override fun latestUpdatesRequest(page: Int): Request = catalogRequest(page)
 
-    override fun latestUpdatesParse(response: Response): MangasPage {
-        return parseMangaList(response)
-    }
+    override fun latestUpdatesParse(response: Response): MangasPage = parseMangaList(response)
 
     private fun catalogRequest(page: Int): Request {
         val url = baseUrl.toHttpUrl().newBuilder()
@@ -112,9 +103,7 @@ class LeerCapitulo : HttpSource() {
         return GET(urlBuilder.build(), headers)
     }
 
-    override fun searchMangaParse(response: Response): MangasPage {
-        return parseMangaList(response)
-    }
+    override fun searchMangaParse(response: Response): MangasPage = parseMangaList(response)
 
     private fun parseMangaList(response: Response): MangasPage {
         val document = response.asJsoup()
@@ -214,7 +203,6 @@ class LeerCapitulo : HttpSource() {
                 setUrlWithoutDomain(element.attr("abs:href"))
                 name = element.selectFirst(".n")?.text()
                     ?: element.text()
-
                 date_upload = element
                     .selectFirst(".d")
                     ?.text()
