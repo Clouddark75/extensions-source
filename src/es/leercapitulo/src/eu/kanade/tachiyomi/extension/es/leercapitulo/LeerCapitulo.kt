@@ -181,7 +181,7 @@ class LeerCapitulo : HttpSource() {
                 ?.attr("abs:src")
 
             genre = document
-                .select("a[href*='?genre=']")
+                .select("a.badge.text-bg-secondary.text-decoration-none")
                 .joinToString { it.text() }
                 .takeIf { it.isNotBlank() }
 
