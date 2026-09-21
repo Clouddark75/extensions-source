@@ -252,3 +252,4 @@ class LeerCapitulo : HttpSource() {
         "cancelled" -> SManga.CANCELLED
         else -> SManga.UNKNOWN
     }
+}
