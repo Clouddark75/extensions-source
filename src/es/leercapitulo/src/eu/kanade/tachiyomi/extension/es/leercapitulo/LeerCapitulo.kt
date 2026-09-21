@@ -32,7 +32,39 @@ class LeerCapitulo : HttpSource() {
 
     override fun popularMangaParse(response: Response): MangasPage = parseMangaList(response)
 
-    override fun latestUpdatesRequest(page: Int): Request = catalogRequest(page)
+    override fun latestUpdatesRequest(page: Int): Request = GET(
+        baseUrl.toHttpUrl().newBuilder()
+            .addQueryParameter("page", page.toString())
+            .build(),
+        headers,
+    )
+
+    override fun latestUpdatesParse(response: Response): MangasPage {
+        val document = response.asJsoup()
+
+        val mangas = document.select("article.lc-release").mapNotNull { element ->
+            val titleLink = element.selectFirst("a.lc-release-title")
+                ?: return@mapNotNull null
+
+            val url = titleLink.attr("abs:href")
+                .takeIf { it.isNotEmpty() }
+                ?: return@mapNotNull null
+
+            SManga.create().apply {
+                setUrlWithoutDomain(url)
+                title = titleLink.text()
+                thumbnail_url = element
+                    .selectFirst("a.lc-release-cover img")
+                    ?.attr("abs:src")
+            }
+        }
+
+        val hasNextPage = document.selectFirst(
+            "a[rel=next], a[aria-label=Siguiente][href]",
+        ) != null
+
+        return MangasPage(mangas, hasNextPage)
+    }
 
     override fun latestUpdatesParse(response: Response): MangasPage = parseMangaList(response)
 
