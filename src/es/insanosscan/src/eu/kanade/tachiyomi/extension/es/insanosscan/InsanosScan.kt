@@ -33,9 +33,7 @@ class InsanosScan : HttpSource() {
 
     // Popular
 
-    override fun popularMangaRequest(page: Int): Request {
-        return GET("$baseUrl/series/", headers)
-    }
+    override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/series/", headers)
 
     override fun popularMangaParse(response: Response): MangasPage {
         val series = parseSeries(response)
@@ -49,9 +47,7 @@ class InsanosScan : HttpSource() {
 
     // Latest
 
-    override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/series/", headers)
-    }
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/series/", headers)
 
     override fun latestUpdatesParse(response: Response): MangasPage {
         val series = parseSeries(response)
@@ -79,7 +75,6 @@ class InsanosScan : HttpSource() {
 
     override fun searchMangaParse(response: Response): MangasPage {
         val query = searchQuery.lowercase()
-
         val series = parseSeries(response)
 
         val results = if (query.isBlank()) {
@@ -99,39 +94,33 @@ class InsanosScan : HttpSource() {
 
     // Details
 
-    override fun mangaDetailsRequest(manga: SManga): Request {
-        return GET("$baseUrl/series/${manga.url}", headers)
-    }
+    override fun mangaDetailsRequest(manga: SManga): Request =
+        GET("$baseUrl/series/${manga.url}", headers)
 
-    override fun mangaDetailsParse(response: Response): SManga {
-        return json.decodeFromString<SeriesDto>(
-            response.body!!.string(),
-        ).toSManga()
-    }
+    override fun mangaDetailsParse(response: Response): SManga = json.decodeFromString<SeriesDto>(
+        response.body!!.string(),
+    ).toSManga()
 
     // Chapters
 
-    override fun chapterListRequest(manga: SManga): Request {
-        return GET("$baseUrl/series/${manga.url}/chapters", headers)
-    }
+    override fun chapterListRequest(manga: SManga): Request =
+        GET("$baseUrl/series/${manga.url}/chapters", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> {
-        return json.decodeFromString<List<ChapterDto>>(
+    override fun chapterListParse(response: Response): List<SChapter> =
+        json.decodeFromString<List<ChapterDto>>(
             response.body!!.string(),
         )
             .filter { it.isPublished }
             .sortedByDescending { it.chapterNumber }
             .map { it.toSChapter() }
-    }
 
     // Pages
 
-    override fun pageListRequest(chapter: SChapter): Request {
-        return GET("$baseUrl${chapter.url}", headers)
-    }
+    override fun pageListRequest(chapter: SChapter): Request =
+        GET("$baseUrl${chapter.url}", headers)
 
-    override fun pageListParse(document: Document): List<Page> {
-        return document
+    override fun pageListParse(document: Document): List<Page> =
+        document
             .select("figure.page-wrapper[data-page-path]")
             .mapIndexed { index, element ->
                 Page(
@@ -139,11 +128,9 @@ class InsanosScan : HttpSource() {
                     imageUrl = element.absUrl("data-page-path"),
                 )
             }
-    }
 
-    private fun parseSeries(response: Response): List<SeriesDto> {
-        return json.decodeFromString(response.body!!.string())
-    }
+    private fun parseSeries(response: Response): List<SeriesDto> =
+        json.decodeFromString(response.body!!.string())
 
     @Serializable
     private data class SeriesDto(
@@ -182,11 +169,8 @@ class InsanosScan : HttpSource() {
         fun toSManga(): SManga {
             return SManga.create().apply {
                 url = id.toString()
-
                 title = this@SeriesDto.title
-
                 author = this@SeriesDto.author
-
                 description = buildString {
                     this@SeriesDto.description
                         ?.takeIf { it.isNotBlank() }
@@ -282,16 +266,11 @@ class InsanosScan : HttpSource() {
 
             return SChapter.create().apply {
                 url = "/reader?series=$seriesId&chapter=$id"
-
                 name = title
                     ?.takeIf { it.isNotBlank() }
                     ?: "Capítulo $number"
-
                 chapter_number = chapterNumber.toFloat()
-
-                date_upload = parseDate(
-                    publishedAt ?: availableAt,
-                )
+                date_upload = parseDate(publishedAt ?: availableAt)
             }
         }
     }
