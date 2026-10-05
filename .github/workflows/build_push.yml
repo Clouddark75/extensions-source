@@ -36,17 +36,17 @@ jobs:
         with:
           fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
+
+      - name: Format extension
+        run: ./gradlew :src:es:insanosscan:spotlessApply
+
+      - name: Check formatting
+        run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck
+
       - id: generate-matrices
         name: Create output matrices
         run: |
           python ./.github/scripts/generate-build-matrices.py "$NX_BASE" Release
-
-   Check:
-     - name: Format extension
-       run: ./gradlew :src:es:insanosscan:spotlessApply
-
-     - name: Check formatting
-       run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck
 
   build:
     name: Build extensions (${{ matrix.chunk.number }})
