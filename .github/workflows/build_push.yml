@@ -41,6 +41,13 @@ jobs:
         run: |
           python ./.github/scripts/generate-build-matrices.py "$NX_BASE" Release
 
+   Check:
+     - name: Format extension
+       run: ./gradlew :src:es:insanosscan:spotlessApply
+
+     - name: Check formatting
+       run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck
+
   build:
     name: Build extensions (${{ matrix.chunk.number }})
     needs: prepare
