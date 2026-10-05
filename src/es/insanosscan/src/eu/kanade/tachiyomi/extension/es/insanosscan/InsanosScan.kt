@@ -15,7 +15,7 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import java.time.Instant
 
-class InsanosLibrary : HttpSource() {
+class InsanosScan : HttpSource() {
 
     override val name = "Insanos Library"
 
