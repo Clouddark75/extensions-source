@@ -29,6 +29,10 @@ class InsanosLibrary : HttpSource() {
         ignoreUnknownKeys = true
     }
 
+    private var searchQuery = ""
+
+    // Popular
+
     override fun popularMangaRequest(page: Int): Request {
         return GET("$baseUrl/series/", headers)
     }
@@ -42,6 +46,8 @@ class InsanosLibrary : HttpSource() {
             hasNextPage = false,
         )
     }
+
+    // Latest
 
     override fun latestUpdatesRequest(page: Int): Request {
         return GET("$baseUrl/series/", headers)
@@ -59,31 +65,42 @@ class InsanosLibrary : HttpSource() {
         )
     }
 
+    // Search
+
     override fun searchMangaRequest(
         page: Int,
         query: String,
         filters: FilterList,
     ): Request {
-        return GET(
-            "$baseUrl/series/",
-            headers,
-        )
+        searchQuery = query.trim()
+
+        return GET("$baseUrl/series/", headers)
     }
 
     override fun searchMangaParse(response: Response): MangasPage {
+        val query = searchQuery.lowercase()
+
         val series = parseSeries(response)
 
+        val results = if (query.isBlank()) {
+            series
+        } else {
+            series.filter {
+                it.title.lowercase().contains(query) ||
+                    it.altTitle?.lowercase()?.contains(query) == true
+            }
+        }
+
         return MangasPage(
-            mangas = series.map { it.toSManga() },
+            mangas = results.map { it.toSManga() },
             hasNextPage = false,
         )
     }
 
+    // Details
+
     override fun mangaDetailsRequest(manga: SManga): Request {
-        return GET(
-            "$baseUrl/series/${manga.url}",
-            headers,
-        )
+        return GET("$baseUrl/series/${manga.url}", headers)
     }
 
     override fun mangaDetailsParse(response: Response): SManga {
@@ -92,11 +109,10 @@ class InsanosLibrary : HttpSource() {
         ).toSManga()
     }
 
+    // Chapters
+
     override fun chapterListRequest(manga: SManga): Request {
-        return GET(
-            "$baseUrl/series/${manga.url}/chapters",
-            headers,
-        )
+        return GET("$baseUrl/series/${manga.url}/chapters", headers)
     }
 
     override fun chapterListParse(response: Response): List<SChapter> {
@@ -108,11 +124,10 @@ class InsanosLibrary : HttpSource() {
             .map { it.toSChapter() }
     }
 
+    // Pages
+
     override fun pageListRequest(chapter: SChapter): Request {
-        return GET(
-            "$baseUrl${chapter.url}",
-            headers,
-        )
+        return GET("$baseUrl${chapter.url}", headers)
     }
 
     override fun pageListParse(document: Document): List<Page> {
@@ -148,6 +163,8 @@ class InsanosLibrary : HttpSource() {
         val status: String? = null,
         @SerialName("age_rating")
         val ageRating: String? = null,
+        @SerialName("content_warnings")
+        val contentWarnings: String? = null,
         @SerialName("chapter_count")
         val chapterCount: Int = 0,
         @SerialName("view_count")
@@ -170,7 +187,33 @@ class InsanosLibrary : HttpSource() {
 
                 author = this@SeriesDto.author
 
-                description = this@SeriesDto.description.orEmpty()
+                description = buildString {
+                    this@SeriesDto.description
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(::append)
+
+                    this@SeriesDto.altTitle
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            if (isNotEmpty()) {
+                                append("\n\n")
+                            }
+
+                            append("Título alternativo: ")
+                            append(it)
+                        }
+
+                    this@SeriesDto.contentWarnings
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            if (isNotEmpty()) {
+                                append("\n\n")
+                            }
+
+                            append("Advertencias: ")
+                            append(it)
+                        }
+                }
 
                 thumbnail_url = coverImage
                     ?.takeIf { it.isNotBlank() }
