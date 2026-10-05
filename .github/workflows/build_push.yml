@@ -38,10 +38,15 @@ jobs:
 
 
       - name: Format extension
-        run: ./gradlew :src:es:insanosscan:spotlessApply
+        run: |
+          ./gradlew :src:es:insanosscan:spotlessApply --no-daemon
+          echo "===== FILE AFTER SPOTLESS APPLY ====="
+          sed -n '1,260p' src/es/insanosscan/src/eu/kanade/tachiyomi/extension/es/insanosscan/InsanosScan.kt
+          echo "===== GIT DIFF ====="
+          git diff -- src/es/insanosscan/src/eu/kanade/tachiyomi/extension/es/insanosscan/InsanosScan.kt
 
       - name: Check formatting
-        run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck
+        run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck --no-daemon --stacktrace
 
       - id: generate-matrices
         name: Create output matrices
