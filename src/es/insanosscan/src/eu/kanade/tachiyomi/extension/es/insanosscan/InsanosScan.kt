@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import okhttp3.Response
-import org.jsoup.nodes.Document
+import org.jsoup.Jsoup
 import java.time.Instant
 
 class InsanosScan : HttpSource() {
@@ -115,7 +115,7 @@ class InsanosScan : HttpSource() {
 
     override fun pageListRequest(chapter: SChapter): Request = GET("$baseUrl${chapter.url}", headers)
 
-    override fun pageListParse(document: Document): List<Page> = document
+    override fun pageListParse(response: Response): List<Page> = Jsoup.parse(response.body!!.string())
         .select("figure.page-wrapper[data-page-path]")
         .mapIndexed { index, element ->
             Page(
@@ -123,6 +123,8 @@ class InsanosScan : HttpSource() {
                 imageUrl = element.absUrl("data-page-path"),
             )
         }
+
+    override fun imageUrlParse(response: Response): String = response.request.url.toString()
 
     private fun parseSeries(response: Response): List<SeriesDto> = json.decodeFromString(response.body!!.string())
 
@@ -198,7 +200,7 @@ class InsanosScan : HttpSource() {
                     if (it.startsWith("http")) {
                         it
                     } else {
-                        "$baseUrl$it"
+                        "$BASE_URL$it"
                     }
                 }
 
@@ -267,13 +269,17 @@ class InsanosScan : HttpSource() {
         }
     }
 
-    private fun parseDate(value: String?): Long {
-        if (value.isNullOrBlank()) {
-            return 0L
-        }
+    companion object {
+        private const val BASE_URL = "https://insanoslibrary.com"
 
-        return runCatching {
-            Instant.parse(value).toEpochMilli()
-        }.getOrDefault(0L)
+        private fun parseDate(value: String?): Long {
+            if (value.isNullOrBlank()) {
+                return 0L
+            }
+
+            return runCatching {
+                Instant.parse(value).toEpochMilli()
+            }.getOrDefault(0L)
+        }
     }
 }
