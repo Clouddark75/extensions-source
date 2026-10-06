@@ -36,17 +36,8 @@ jobs:
         with:
           fallback-sha: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
-
-      - name: Format extension
-        run: |
-          ./gradlew :src:es:insanosscan:spotlessApply --no-daemon
-          echo "===== FILE AFTER SPOTLESS APPLY ====="
-          sed -n '1,260p' src/es/insanosscan/src/eu/kanade/tachiyomi/extension/es/insanosscan/InsanosScan.kt
-          echo "===== GIT DIFF ====="
-          git diff -- src/es/insanosscan/src/eu/kanade/tachiyomi/extension/es/insanosscan/InsanosScan.kt
-
       - name: Check formatting
-        run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck --no-daemon --stacktrace
+        run: ./gradlew :src:es:insanosscan:spotlessKotlinCheck
 
       - id: generate-matrices
         name: Create output matrices
