@@ -94,8 +94,7 @@ class InsanosScan : HttpSource() {
 
     // Details
 
-    override fun mangaDetailsRequest(manga: SManga): Request =
-        GET("$baseUrl/series/${manga.url}", headers)
+    override fun mangaDetailsRequest(manga: SManga): Request = GET("$baseUrl/series/${manga.url}", headers)
 
     override fun mangaDetailsParse(response: Response): SManga = json.decodeFromString<SeriesDto>(
         response.body!!.string(),
@@ -103,34 +102,29 @@ class InsanosScan : HttpSource() {
 
     // Chapters
 
-    override fun chapterListRequest(manga: SManga): Request =
-        GET("$baseUrl/series/${manga.url}/chapters", headers)
+    override fun chapterListRequest(manga: SManga): Request = GET("$baseUrl/series/${manga.url}/chapters", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> =
-        json.decodeFromString<List<ChapterDto>>(
-            response.body!!.string(),
-        )
-            .filter { it.isPublished }
-            .sortedByDescending { it.chapterNumber }
-            .map { it.toSChapter() }
+    override fun chapterListParse(response: Response): List<SChapter> = json.decodeFromString<List<ChapterDto>>(
+        response.body!!.string(),
+    )
+        .filter { it.isPublished }
+        .sortedByDescending { it.chapterNumber }
+        .map { it.toSChapter() }
 
     // Pages
 
-    override fun pageListRequest(chapter: SChapter): Request =
-        GET("$baseUrl${chapter.url}", headers)
+    override fun pageListRequest(chapter: SChapter): Request = GET("$baseUrl${chapter.url}", headers)
 
-    override fun pageListParse(document: Document): List<Page> =
-        document
-            .select("figure.page-wrapper[data-page-path]")
-            .mapIndexed { index, element ->
-                Page(
-                    index = index,
-                    imageUrl = element.absUrl("data-page-path"),
-                )
-            }
+    override fun pageListParse(document: Document): List<Page> = document
+        .select("figure.page-wrapper[data-page-path]")
+        .mapIndexed { index, element ->
+            Page(
+                index = index,
+                imageUrl = element.absUrl("data-page-path"),
+            )
+        }
 
-    private fun parseSeries(response: Response): List<SeriesDto> =
-        json.decodeFromString(response.body!!.string())
+    private fun parseSeries(response: Response): List<SeriesDto> = json.decodeFromString(response.body!!.string())
 
     @Serializable
     private data class SeriesDto(
@@ -166,70 +160,68 @@ class InsanosScan : HttpSource() {
         val updatedAt: String? = null,
     ) {
 
-        fun toSManga(): SManga {
-            return SManga.create().apply {
-                url = id.toString()
-                title = this@SeriesDto.title
-                author = this@SeriesDto.author
-                description = buildString {
-                    this@SeriesDto.description
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let(::append)
+        fun toSManga(): SManga = SManga.create().apply {
+            url = id.toString()
+            title = this@SeriesDto.title
+            author = this@SeriesDto.author
+            description = buildString {
+                this@SeriesDto.description
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::append)
 
-                    this@SeriesDto.altTitle
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let {
-                            if (isNotEmpty()) {
-                                append("\n\n")
-                            }
-
-                            append("Título alternativo: ")
-                            append(it)
-                        }
-
-                    this@SeriesDto.contentWarnings
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let {
-                            if (isNotEmpty()) {
-                                append("\n\n")
-                            }
-
-                            append("Advertencias: ")
-                            append(it)
-                        }
-                }
-
-                thumbnail_url = coverImage
+                this@SeriesDto.altTitle
                     ?.takeIf { it.isNotBlank() }
                     ?.let {
-                        if (it.startsWith("http")) {
-                            it
-                        } else {
-                            "$baseUrl$it"
+                        if (isNotEmpty()) {
+                            append("\n\n")
                         }
+
+                        append("Título alternativo: ")
+                        append(it)
                     }
 
-                genre = buildList {
-                    this@SeriesDto.genre
-                        ?.split(",")
-                        ?.map(String::trim)
-                        ?.filter(String::isNotBlank)
-                        ?.let(::addAll)
+                this@SeriesDto.contentWarnings
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        if (isNotEmpty()) {
+                            append("\n\n")
+                        }
 
-                    this@SeriesDto.seriesType
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let(::add)
+                        append("Advertencias: ")
+                        append(it)
+                    }
+            }
 
-                    this@SeriesDto.ageRating
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let(::add)
-                }.joinToString(", ")
-
-                status = when (this@SeriesDto.status?.lowercase()) {
-                    "en emisión" -> SManga.ONGOING
-                    "finalizado" -> SManga.COMPLETED
-                    else -> SManga.UNKNOWN
+            thumbnail_url = coverImage
+                ?.takeIf { it.isNotBlank() }
+                ?.let {
+                    if (it.startsWith("http")) {
+                        it
+                    } else {
+                        "$baseUrl$it"
+                    }
                 }
+
+            genre = buildList {
+                this@SeriesDto.genre
+                    ?.split(",")
+                    ?.map(String::trim)
+                    ?.filter(String::isNotBlank)
+                    ?.let(::addAll)
+
+                this@SeriesDto.seriesType
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::add)
+
+                this@SeriesDto.ageRating
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::add)
+            }.joinToString(", ")
+
+            status = when (this@SeriesDto.status?.lowercase()) {
+                "en emisión" -> SManga.ONGOING
+                "finalizado" -> SManga.COMPLETED
+                else -> SManga.UNKNOWN
             }
         }
     }
