@@ -12,7 +12,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import okhttp3.Response
-import org.jsoup.Jsoup
 import java.time.Instant
 
 class InsanosScan : HttpSource() {
@@ -113,16 +112,35 @@ class InsanosScan : HttpSource() {
 
     // Pages
 
-    override fun pageListRequest(chapter: SChapter): Request = GET("$baseUrl${chapter.url}", headers)
+    override fun pageListRequest(chapter: SChapter): Request {
+        val params = chapter.url.substringAfter("?")
+            .split("&")
+            .associate {
+                val (key, value) = it.split("=")
+                key to value
+            }
 
-    override fun pageListParse(response: Response): List<Page> = Jsoup.parse(response.body!!.string())
-        .select("figure.page-wrapper[data-page-path]")
-        .mapIndexed { index, element ->
+        val seriesId = params["series"]
+        val chapterId = params["chapter"]
+
+        return GET(
+            "$baseUrl/series/$seriesId/chapters/$chapterId/pages",
+            headers,
+        )
+    }
+
+    override fun pageListParse(response: Response): List<Page> {
+        val pages = json.decodeFromString<PagesDto>(
+            response.body!!.string(),
+        )
+
+        return pages.pages.mapIndexed { index, path ->
             Page(
                 index = index,
-                imageUrl = element.absUrl("data-page-path"),
+                imageUrl = "$baseUrl$path",
             )
         }
+    }
 
     override fun imageUrlParse(response: Response): String = response.request.url.toString()
 
@@ -268,6 +286,11 @@ class InsanosScan : HttpSource() {
             }
         }
     }
+
+    @Serializable
+    private data class PagesDto(
+        val pages: List<String> = emptyList(),
+    )
 
     companion object {
         private const val BASE_URL = "https://insanoslibrary.com"
