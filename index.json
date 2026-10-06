@@ -16574,11 +16574,11 @@
     "nsfw": 0,
     "sources": [
       {
-        "name": "InsanosScan",
+        "name": "Insanos Library",
         "lang": "es",
-        "id": "5322003068520429479",
+        "id": "2877270227462038527",
         "baseUrl": "https://insanoslibrary.com",
-        "versionId": 2
+        "versionId": 1
       }
     ]
   },
