@@ -45,7 +45,6 @@ abstract class OlympusScanlation :
         }
     }
 
-
     override val supportsLatest: Boolean = true
 
     private val preferences = getPreferences()
