@@ -12,20 +12,17 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import keiyoushi.annotation.Source
-import keiyoushi.network.rateLimit
 import keiyoushi.utils.asJsoup
 import keiyoushi.utils.getPreferences
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonString
 import kotlinx.serialization.SerializationException
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class OlympusScanlation :
@@ -48,7 +45,6 @@ abstract class OlympusScanlation :
         }
     }
 
-    private val apiBaseUrl get() = baseUrl.replace("https://", "https://panel.")
 
     override val supportsLatest: Boolean = true
 
@@ -56,10 +52,7 @@ abstract class OlympusScanlation :
 
     override val client by lazy {
         fetchedDomainUrl()
-        return@lazy network.client.newBuilder()
-            .rateLimit(1, 2.seconds) { it.host == baseUrl.toHttpUrl().host }
-            .rateLimit(2, 1.seconds) { it.host == apiBaseUrl.toHttpUrl().host }
-            .build()
+        network.client
     }
 
     override fun headersBuilder() = super.headersBuilder()
@@ -199,7 +192,7 @@ abstract class OlympusScanlation :
     }
 
     private fun paginatedChapterListRequest(mangaSlug: String, mangaId: String, page: Int): Request = GET(
-        url = "$apiBaseUrl/api/series/$mangaSlug/chapters?page=$page&direction=desc&type=comic#$mangaId",
+        url = "$baseUrl/api/series/$mangaSlug/chapters?page=$page&direction=desc&type=comic#$mangaId",
         headers = headers,
     )
 
@@ -225,10 +218,12 @@ abstract class OlympusScanlation :
 
     override fun pageListRequest(chapter: SChapter): Request {
         val mangaId = chapter.url.substringBefore("/")
-        val chapterId = chapter.url.substringAfter("/")
         val mangaSlug = preferences.slugMap[mangaId.toInt()]!!
 
-        return GET("$baseUrl/api/capitulo/comic-$mangaSlug/$chapterId")
+        // The endpoint is keyed by chapter number, not id
+        val chapterNumber = chapter.name.removePrefix("Capitulo ")
+
+        return GET("$baseUrl/api/capitulo/$mangaSlug/$chapterNumber?type=comic")
     }
 
     override fun pageListParse(response: Response): List<Page> = response.parseAs<PayloadPagesDto>().chapter.pages.mapIndexed { i, img ->
