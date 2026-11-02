@@ -1,7 +1,6 @@
 ext {
     extName = 'MHScans'
     extClass = '.MHScans'
-    themePkg = 'madara'
     baseUrl = 'https://mhscans.com'
     overrideVersionCode = 12
     isNsfw = false
