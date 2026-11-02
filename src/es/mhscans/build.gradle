@@ -1,6 +1,8 @@
+
 ext {
     extName = 'MHScans'
     extClass = '.MHScans'
+    extVersionCode = 12
     baseUrl = 'https://mhscans.com'
     overrideVersionCode = 12
     isNsfw = false
