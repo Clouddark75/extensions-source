@@ -17143,10 +17143,10 @@
   {
     "name": "Tachiyomi: MHScans",
     "pkg": "eu.kanade.tachiyomi.extension.es.mhscans",
-    "apk": "tachiyomi-es.mhscans-v1.4.62.apk",
+    "apk": "tachiyomi-es.mhscans-v1.4.12.apk",
     "lang": "es",
-    "code": 62,
-    "version": "1.4.62",
+    "code": 12,
+    "version": "1.4.12",
     "nsfw": 0,
     "sources": [
       {
