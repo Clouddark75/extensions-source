@@ -15,10 +15,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
-import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 import rx.Observable
 import rx.schedulers.Schedulers
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 class MHScans : HttpSource() {
 
@@ -113,27 +113,23 @@ class MHScans : HttpSource() {
         }
     }
 
-    override fun chapterListRequest(manga: SManga): Request =
-        GET("$baseUrl${manga.url}/chapters?page=1", headers)
+    override fun chapterListRequest(manga: SManga): Request = GET("$baseUrl${manga.url}/chapters?page=1", headers)
 
-    private fun chapterPageRequest(manga: SManga, page: Int): Request =
-        GET("$baseUrl${manga.url}/chapters?page=$page", headers)
+    private fun chapterPageRequest(manga: SManga, page: Int): Request = GET("$baseUrl${manga.url}/chapters?page=$page", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> =
-        parseChapters(response.asJsoup())
+    override fun chapterListParse(response: Response): List<SChapter> = parseChapters(response.asJsoup())
 
-    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> =
-        Observable.fromCallable {
-            val response = client.newCall(chapterListRequest(manga)).execute()
-            val totalPages = response.header("X-Pages")?.toIntOrNull() ?: 1
-            val firstPage = response.use { parseChapters(it.asJsoup()) }
+    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
+        val response = client.newCall(chapterListRequest(manga)).execute()
+        val totalPages = response.header("X-Pages")?.toIntOrNull() ?: 1
+        val firstPage = response.use { parseChapters(it.asJsoup()) }
 
-            firstPage + (2..totalPages).flatMap { page ->
-                client.newCall(chapterPageRequest(manga, page)).execute().use {
-                    parseChapters(it.asJsoup())
-                }
+        firstPage + (2..totalPages).flatMap { page ->
+            client.newCall(chapterPageRequest(manga, page)).execute().use {
+                parseChapters(it.asJsoup())
             }
-        }.subscribeOn(Schedulers.io())
+        }
+    }.subscribeOn(Schedulers.io())
 
     // paid chapters link to /auth/login without a chapter id until they're bought
     private fun parseChapters(document: Document): List<SChapter> = document.select("a[href^=/leer/][data-chapter-num]").map { element ->
