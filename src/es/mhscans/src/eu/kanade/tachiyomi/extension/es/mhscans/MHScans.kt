@@ -95,12 +95,35 @@ class MHScans : HttpSource() {
     override fun mangaDetailsParse(response: Response): SManga {
         val document = response.asJsoup()
 
+        val description = document.selectFirst("#comic-description")?.text()
+        val scanlator = document.selectFirst("a[href^=/groups/]")?.text()
+
+        val genres = document.select(".comic-chips li").map { it.text() }
+        val metadata = document.select(
+            ".comic-meta > span:not(.comic-meta__status):not(.comic-meta__sep)",
+        ).map { it.text() }
+
         return SManga.create().apply {
             url = response.request.url.encodedPath
             title = document.selectFirst(".comic-hero h1")!!.text()
             thumbnail_url = document.selectFirst(".comic-hero__cover img")?.absUrl("src")
-            description = document.selectFirst("#comic-description")?.text()
-            genre = document.select(".comic-chips li").joinToString { it.text() }
+
+            this.description = buildString {
+                if (!description.isNullOrBlank()) {
+                    append(description)
+                }
+
+                if (!scanlator.isNullOrBlank()) {
+                    if (isNotEmpty()) append("\n\n")
+                    append("Serie a cargo de: ")
+                    append(scanlator)
+                }
+            }.takeIf { it.isNotBlank() }
+
+            genre = (genres + metadata + listOfNotNull(scanlator))
+                .distinct()
+                .joinToString()
+
             status = when (document.selectFirst(".comic-meta__status")?.text()?.lowercase()) {
                 "en emisión" -> SManga.ONGOING
                 "completado" -> SManga.COMPLETED
