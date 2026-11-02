@@ -10,7 +10,6 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.firstInstanceOrNull
-import keiyoushi.utils.setUrlWithoutDomain
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -84,7 +83,7 @@ class MHScans : HttpSource() {
             .filterNot { it.selectFirst("div.comic-cover ~ span")?.text() == "Novel" }
             .map { element ->
                 SManga.create().apply {
-                    setUrlWithoutDomain(element.absUrl("href"))
+                    url = element.absUrl("href").toHttpUrl().encodedPath
                     title = element.selectFirst("p")!!.text()
                     thumbnail_url = element.selectFirst("img")?.absUrl("src")
                 }
@@ -97,7 +96,7 @@ class MHScans : HttpSource() {
         val document = response.asJsoup()
 
         return SManga.create().apply {
-            setUrlWithoutDomain(response.request.url.toString())
+            url = response.request.url.encodedPath
             title = document.selectFirst(".comic-hero h1")!!.text()
             thumbnail_url = document.selectFirst(".comic-hero__cover img")?.absUrl("src")
             description = document.selectFirst("#comic-description")?.text()
@@ -134,7 +133,7 @@ class MHScans : HttpSource() {
     // paid chapters link to /auth/login without a chapter id until they're bought
     private fun parseChapters(document: Document): List<SChapter> = document.select("a[href^=/leer/][data-chapter-num]").map { element ->
         SChapter.create().apply {
-            setUrlWithoutDomain(element.absUrl("href"))
+            url = element.absUrl("href").toHttpUrl().encodedPath
             name = element.selectFirst("[data-cl-title]")!!.text()
             element.attr("data-chapter-num").toFloatOrNull()?.let { chapter_number = it }
             date_upload = element.selectFirst("[data-cl-title] + div > span")?.text().parseRelativeDate()
