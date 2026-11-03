@@ -1,10 +1,15 @@
-ext {
-    extName = 'Traducciones Amistosas'
-    extClass = '.Nartag'
-    themePkg = 'madara'
-    baseUrl = 'https://nartag.com'
-    overrideVersionCode = 5
-    isNsfw = true
+plugins {
+    alias(kei.plugins.extension)
 }
 
-apply plugin: "kei.plugins.extension.legacy"
+keiyoushi {
+    name = "Rncalation"
+    versionCode = 64
+    contentWarning = ContentWarning.NSFW
+    libVersion = "1.4"
+
+    source {
+        lang = "es"
+        baseUrl = "https://rncalation.online"
+    }
+}
