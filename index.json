@@ -17195,20 +17195,20 @@
     ]
   },
   {
-    "name": "Tachiyomi: Traducciones Amistosas",
+    "name": "Tachiyomi: Rncalation",
     "pkg": "eu.kanade.tachiyomi.extension.es.nartag",
-    "apk": "tachiyomi-es.nartag-v1.4.55.apk",
+    "apk": "tachiyomi-es.nartag-v1.4.64.apk",
     "lang": "es",
-    "code": 55,
-    "version": "1.4.55",
-    "nsfw": 1,
+    "code": 64,
+    "version": "1.4.64",
+    "nsfw": 0,
     "sources": [
       {
-        "name": "Traducciones Amistosas",
+        "name": "Rncalation",
         "lang": "es",
-        "id": "1424373335432920755",
-        "baseUrl": "https://nartag.com",
-        "versionId": 2
+        "id": "2973017642163731007",
+        "baseUrl": "https://rncalation.online",
+        "versionId": 1
       }
     ]
   },
