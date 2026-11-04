@@ -1,4 +1,3 @@
-
 package eu.kanade.tachiyomi.extension.es.nartag
 
 import eu.kanade.tachiyomi.network.GET
@@ -156,27 +155,42 @@ class Rncalation : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
-        return document.select("[data-chapter-id]").mapNotNull { element ->
-            val link = when (element.tagName()) {
-                "a" -> element
-                "button" -> return@mapNotNull null
-                else -> element.selectFirst("a[data-chapter-id]") ?: return@mapNotNull null
-            }
-
+        return document.select("a[data-chapter-id][href]").mapNotNull { link ->
             val chapterNumber = link.attr("data-chapter-num")
                 .toFloatOrNull() ?: return@mapNotNull null
 
-            val timestamp = link.selectFirst("[data-ts]")?.attr("data-ts")
-                ?: link.parent()?.selectFirst("[data-ts]")?.attr("data-ts")
+            val versionRow = link.parents()
+                .firstOrNull { it.hasAttr("data-chgroup-version-row") }
+
+            val groupName = versionRow
+                ?.selectFirst("[data-cl-group]")
+                ?.text()
+                ?.trim()
+                .orEmpty()
+
+            val timestamp = versionRow?.selectFirst("[data-ts]")?.attr("data-ts")
+                ?: link.selectFirst("[data-ts]")?.attr("data-ts")
+                ?: link.parents()
+                    .firstOrNull { it.hasAttr("data-chapter-group") }
+                    ?.selectFirst("[data-ts]")
+                    ?.attr("data-ts")
+
+            val chapterName = link.attr("data-chapter-label").ifEmpty {
+                "Capítulo ${chapterNumber.toInt()}"
+            }
 
             SChapter.create().apply {
                 url = link.absUrl("href").toHttpUrl().encodedPath
-                name = link.attr("data-chapter-label").ifEmpty {
-                    "Capítulo ${chapterNumber.toInt()}"
+                name = if (groupName.isNotEmpty()) {
+                    "$chapterName ($groupName)"
+                } else {
+                    chapterName
                 }
                 chapter_number = chapterNumber
                 date_upload = timestamp?.let {
-                    runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
+                    runCatching {
+                        java.time.Instant.parse(it).toEpochMilli()
+                    }.getOrNull()
                 } ?: 0L
             }
         }
