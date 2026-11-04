@@ -156,6 +156,11 @@ class Rncalation : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
+        android.util.Log.d(
+            "Rncalation",
+            "HTML: ${document.body().html().take(12000)}",
+        )
+
         val groups = document.select("div[data-chapter-group]")
         val links = document.select("a[data-chapter-id]")
         val versions = document.select("div[data-chgroup-version-row]")
