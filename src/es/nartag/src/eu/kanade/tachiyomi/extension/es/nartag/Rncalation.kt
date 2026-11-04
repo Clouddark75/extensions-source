@@ -13,7 +13,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class Rncalation : HttpSource() {
