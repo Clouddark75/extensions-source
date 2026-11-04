@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.nartag
 
 import eu.kanade.tachiyomi.network.GET
@@ -8,21 +9,20 @@ import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.annotation.Source
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
 
-@Source
-abstract class Rncalation : HttpSource() {
+class Rncalation : HttpSource() {
 
+    override val name = "Rncalation"
+    override val lang = "es"
+    override val baseUrl = "https://rncalation.online"
     override val supportsLatest = true
-
     override val client = network.client
 
-    override fun headersBuilder() = super.headersBuilder()
-        .add("Referer", "$baseUrl/")
+    override fun headersBuilder() = super.headersBuilder().add("Referer", "$baseUrl/")
 
     override fun popularMangaRequest(page: Int): Request = GET("$baseUrl/library?sort=views&page=$page", headers)
 
@@ -34,7 +34,7 @@ abstract class Rncalation : HttpSource() {
                 return@mapNotNull null
             }
             SManga.create().apply {
-                setUrlWithoutDomain(element.absUrl("href"))
+                url = element.absUrl("href").toHttpUrl().encodedPath
                 title = element.selectFirst("p.leading-snug")!!.text()
                 thumbnail_url = element.selectFirst("img")?.attr("abs:src")
             }
@@ -50,29 +50,13 @@ abstract class Rncalation : HttpSource() {
     override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
         val url = "$baseUrl/library".toHttpUrl().newBuilder().apply {
             addQueryParameter("page", page.toString())
-            if (query.isNotEmpty()) {
-                addQueryParameter("q", query)
-            }
+            if (query.isNotEmpty()) addQueryParameter("q", query)
             filters.forEach { filter ->
                 when (filter) {
-                    is SortFilter -> {
-                        addQueryParameter("sort", sortOptions[filter.state].value)
-                    }
-                    is TypeFilter -> {
-                        if (filter.state > 0) {
-                            addQueryParameter("type", filter.values[filter.state])
-                        }
-                    }
-                    is StatusFilter -> {
-                        if (filter.state > 0) {
-                            addQueryParameter("status", filter.values[filter.state])
-                        }
-                    }
-                    is GenreFilter -> {
-                        if (filter.state > 0) {
-                            addQueryParameter("genre", filter.values[filter.state])
-                        }
-                    }
+                    is SortFilter -> addQueryParameter("sort", sortOptions[filter.state].value)
+                    is TypeFilter -> if (filter.state > 0) addQueryParameter("type", filter.values[filter.state])
+                    is StatusFilter -> if (filter.state > 0) addQueryParameter("status", filter.values[filter.state])
+                    is GenreFilter -> if (filter.state > 0) addQueryParameter("genre", filter.values[filter.state])
                     else -> {}
                 }
             }
@@ -86,7 +70,6 @@ abstract class Rncalation : HttpSource() {
         val document = response.asJsoup()
         return SManga.create().apply {
             description = document.selectFirst("p#comic-description")?.text() ?: ""
-
             val badges = document.select("span.inline-flex.items-center.rounded").map { it.text().lowercase() }
             status = when {
                 badges.any { it.contains("emisión") || it.contains("curso") || it.contains("ongoing") } -> SManga.ONGOING
@@ -95,17 +78,14 @@ abstract class Rncalation : HttpSource() {
                 badges.any { it.contains("cancelado") || it.contains("cancelled") } -> SManga.CANCELLED
                 else -> SManga.UNKNOWN
             }
-
             genre = document.select("span.inline-flex.items-center.rounded")
                 .filter { it.text().lowercase() !in listOf("emisión", "completado", "pausa", "cancelado") }
                 .joinToString(", ") { it.text() }
-
             val groupName = document.selectFirst("a[href^='/groups/']")?.text()
             if (!groupName.isNullOrEmpty()) {
                 author = groupName
                 artist = groupName
             }
-
             document.select(".flex.items-baseline.justify-between.gap-2").forEach { row ->
                 val label = row.selectFirst("span.text-\\[var\\(--color-text3\\)\\]")?.text()
                 val value = row.selectFirst("span.text-\\[var\\(--color-text2\\)\\]")?.text()
@@ -119,26 +99,27 @@ abstract class Rncalation : HttpSource() {
         val slug = manga.url.removeSuffix("/").substringAfterLast("/")
         val allChapters = mutableListOf<SChapter>()
         var page = 1
+        var hasNextPage: Boolean
         do {
-            val response = client.newCall(chapterListRequest(slug, page)).execute()
-            val chapters = chapterListParse(response)
+            val chapters = client.newCall(chapterListRequest(slug, page)).execute().use { response ->
+                val parsed = chapterListParse(response)
+                val currentPage = response.header("x-page")?.toIntOrNull() ?: page
+                val totalPages = response.header("x-pages")?.toIntOrNull() ?: currentPage
+                hasNextPage = currentPage < totalPages
+                parsed
+            }
             if (chapters.isEmpty()) break
             allChapters.addAll(chapters)
-
-            val currentPage = response.header("x-page")?.toIntOrNull() ?: break
-            val totalPages = response.header("x-pages")?.toIntOrNull() ?: break
-
             page++
-        } while (currentPage < totalPages)
-
-        return@fromCallable allChapters.toList()
+        } while (hasNextPage)
+        allChapters
     }
 
     private fun chapterListRequest(slug: String, page: Int) = GET("$baseUrl/comics/$slug/chapters?page=$page", headers)
 
     override fun chapterListParse(response: Response): List<SChapter> = response.asJsoup().select("a[data-chapter-id]").mapIndexed { num, it ->
         SChapter.create().apply {
-            setUrlWithoutDomain(it.attr("href"))
+            url = it.absUrl("href").toHttpUrl().encodedPath
             chapter_number = it.attr("data-chapter-num").toFloatOrNull() ?: num.toFloat()
             name = it.attr("data-chapter-label").trim().ifEmpty { "Capítulo ${chapter_number.toInt()}" }
             date_upload = it.selectFirst("span[class=text-xs text-[var(--color-text2)]]")?.let { parseDate(it.text()) } ?: 0L
