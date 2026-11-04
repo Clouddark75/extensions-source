@@ -153,16 +153,34 @@ class Rncalation : HttpSource() {
 
     private fun chapterListRequest(slug: String, page: Int) = GET("$baseUrl/comics/$slug/chapters?page=$page", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.asJsoup().select("a[data-chapter-id]").mapIndexed { num, it ->
-        SChapter.create().apply {
-            url = it.absUrl("href").toHttpUrl().encodedPath
-            chapter_number = it.attr("data-chapter-num").toFloatOrNull() ?: num.toFloat()
-            name = it.attr("data-chapter-label").trim().ifEmpty { "Capítulo ${chapter_number.toInt()}" }
-            date_upload = it.selectFirst("[data-ts]")?.attr("data-ts")?.let {
-                runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
-            } ?: 0L
+
+    override fun chapterListParse(response: Response): List<SChapter> = response.asJsoup()
+        .select("div[data-chapter-group]")
+        .flatMap { group ->
+            val chapterNumber = group.attr("data-chapter-num").toFloatOrNull() ?: 0f
+            val chapterName = group.attr("data-chapter-label").ifEmpty {
+                "Capítulo ${chapterNumber.toInt()}"
+            }
+
+            group.select("div[data-chgroup-version-row]").mapNotNull { version ->
+                val link = version.selectFirst("a[data-chapter-id]") ?: return@mapNotNull null
+                val groupName = version.selectFirst("[data-cl-group]")?.text()?.trim()
+                val timestamp = version.selectFirst("[data-ts]")?.attr("data-ts")
+
+                SChapter.create().apply {
+                    url = link.absUrl("href").toHttpUrl().encodedPath
+                    name = if (!groupName.isNullOrEmpty()) {
+                        "$chapterName - $groupName"
+                    } else {
+                        chapterName
+                    }
+                    chapter_number = chapterNumber
+                    date_upload = timestamp?.let {
+                        runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
+                    } ?: 0L
+                }
+            }
         }
-    }
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
