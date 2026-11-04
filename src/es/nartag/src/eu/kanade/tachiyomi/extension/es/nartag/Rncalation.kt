@@ -39,7 +39,7 @@ class Rncalation : HttpSource() {
                 thumbnail_url = element.selectFirst("img")?.attr("abs:src")
             }
         }
-        val hasNextPage = document.selectFirst("a.lib-page-btn--nav:last-child") != null
+        val hasNextPage = document.selectFirst("a.page-btn--nav:not(.page-btn--disabled)[href]") != null
         return MangasPage(mangas, hasNextPage)
     }
 
@@ -122,7 +122,9 @@ class Rncalation : HttpSource() {
             url = it.absUrl("href").toHttpUrl().encodedPath
             chapter_number = it.attr("data-chapter-num").toFloatOrNull() ?: num.toFloat()
             name = it.attr("data-chapter-label").trim().ifEmpty { "Capítulo ${chapter_number.toInt()}" }
-            date_upload = it.selectFirst("span[class=text-xs text-[var(--color-text2)]]")?.let { parseDate(it.text()) } ?: 0L
+            date_upload = it.selectFirst("[data-ts]")?.attr("data-ts")?.let {
+                runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
+            } ?: 0L
         }
     }
 
