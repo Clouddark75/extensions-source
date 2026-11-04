@@ -156,55 +156,28 @@ class Rncalation : HttpSource() {
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
 
-        android.util.Log.d(
-            "Rncalation",
-            "HTML: ${document.body().html().take(12000)}",
-        )
-
-        val groups = document.select("div[data-chapter-group]")
-        val links = document.select("a[data-chapter-id]")
-        val versions = document.select("div[data-chgroup-version-row]")
-
-        android.util.Log.d(
-            "Rncalation",
-            "Groups: ${groups.size}, Versions: ${versions.size}, Links: ${links.size}",
-        )
-
-        groups.forEach { group ->
-            android.util.Log.d(
-                "Rncalation",
-                "Chapter ${group.attr("data-chapter-num")}: " +
-                    "versions=${group.select("div[data-chgroup-version-row]").size}, " +
-                    "links=${group.select("a[data-chapter-id]").size}",
-            )
-        }
-
-        return groups.flatMap { group ->
-            val chapterNumber = group.attr("data-chapter-num").toFloatOrNull() ?: 0f
-            val chapterName = group.attr("data-chapter-label").ifEmpty {
-                "Capítulo ${chapterNumber.toInt()}"
+        return document.select("[data-chapter-id]").mapNotNull { element ->
+            val link = when (element.tagName()) {
+                "a" -> element
+                "button" -> return@mapNotNull null
+                else -> element.selectFirst("a[data-chapter-id]") ?: return@mapNotNull null
             }
 
-            group.select("a[data-chapter-id]").mapNotNull { link ->
-                val version = link.parents().firstOrNull {
-                    it.hasAttr("data-chgroup-version-row")
-                } ?: return@mapNotNull null
+            val chapterNumber = link.attr("data-chapter-num")
+                .toFloatOrNull() ?: return@mapNotNull null
 
-                val groupName = version.selectFirst("[data-cl-group]")?.text()?.trim()
-                val timestamp = version.selectFirst("[data-ts]")?.attr("data-ts")
+            val timestamp = link.selectFirst("[data-ts]")?.attr("data-ts")
+                ?: link.parent()?.selectFirst("[data-ts]")?.attr("data-ts")
 
-                SChapter.create().apply {
-                    url = link.absUrl("href").toHttpUrl().encodedPath
-                    name = if (!groupName.isNullOrEmpty()) {
-                        "$chapterName - $groupName"
-                    } else {
-                        chapterName
-                    }
-                    chapter_number = chapterNumber
-                    date_upload = timestamp?.let {
-                        runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
-                    } ?: 0L
+            SChapter.create().apply {
+                url = link.absUrl("href").toHttpUrl().encodedPath
+                name = link.attr("data-chapter-label").ifEmpty {
+                    "Capítulo ${chapterNumber.toInt()}"
                 }
+                chapter_number = chapterNumber
+                date_upload = timestamp?.let {
+                    runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull()
+                } ?: 0L
             }
         }
     }
