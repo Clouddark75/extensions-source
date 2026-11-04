@@ -153,7 +153,6 @@ class Rncalation : HttpSource() {
 
     private fun chapterListRequest(slug: String, page: Int) = GET("$baseUrl/comics/$slug/chapters?page=$page", headers)
 
-
     override fun chapterListParse(response: Response): List<SChapter> = response.asJsoup()
         .select("div[data-chapter-group]")
         .flatMap { group ->
