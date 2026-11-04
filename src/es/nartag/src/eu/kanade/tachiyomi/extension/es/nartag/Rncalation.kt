@@ -70,22 +70,58 @@ class Rncalation : HttpSource() {
         val document = response.asJsoup()
         return SManga.create().apply {
             description = document.selectFirst("p#comic-description")?.text() ?: ""
-            val badges = document.select("span.inline-flex.items-center.rounded").map { it.text().lowercase() }
+
+            val badges = document.select("span.inline-flex.items-center.rounded")
+                .map { it.text().trim() }
+
             status = when {
-                badges.any { it.contains("emisión") || it.contains("curso") || it.contains("ongoing") } -> SManga.ONGOING
-                badges.any { it.contains("completado") || it.contains("completed") } -> SManga.COMPLETED
-                badges.any { it.contains("pausa") || it.contains("hiatus") } -> SManga.ON_HIATUS
-                badges.any { it.contains("cancelado") || it.contains("cancelled") } -> SManga.CANCELLED
+                badges.any {
+                    it.equals("En emisión", ignoreCase = true) ||
+                        it.equals("Emisión", ignoreCase = true) ||
+                        it.equals("En curso", ignoreCase = true) ||
+                        it.equals("Ongoing", ignoreCase = true)
+                } -> SManga.ONGOING
+                badges.any {
+                    it.equals("Completado", ignoreCase = true) ||
+                        it.equals("Completed", ignoreCase = true)
+                } -> SManga.COMPLETED
+                badges.any {
+                    it.equals("En pausa", ignoreCase = true) ||
+                        it.equals("Pausa", ignoreCase = true) ||
+                        it.equals("Hiatus", ignoreCase = true)
+                } -> SManga.ON_HIATUS
+                badges.any {
+                    it.equals("Cancelado", ignoreCase = true) ||
+                        it.equals("Cancelled", ignoreCase = true)
+                } -> SManga.CANCELLED
                 else -> SManga.UNKNOWN
             }
-            genre = document.select("span.inline-flex.items-center.rounded")
-                .filter { it.text().lowercase() !in listOf("emisión", "completado", "pausa", "cancelado") }
-                .joinToString(", ") { it.text() }
+
+            val excludedBadges = listOf(
+                "emisión",
+                "en emisión",
+                "en curso",
+                "ongoing",
+                "completado",
+                "completed",
+                "pausa",
+                "en pausa",
+                "hiatus",
+                "cancelado",
+                "cancelled",
+            )
+
+            genre = badges
+                .filter { it.lowercase() !in excludedBadges }
+                .distinct()
+                .joinToString(", ")
+
             val groupName = document.selectFirst("a[href^='/groups/']")?.text()
             if (!groupName.isNullOrEmpty()) {
                 author = groupName
                 artist = groupName
             }
+
             document.select(".flex.items-baseline.justify-between.gap-2").forEach { row ->
                 val label = row.selectFirst("span.text-\\[var\\(--color-text3\\)\\]")?.text()
                 val value = row.selectFirst("span.text-\\[var\\(--color-text2\\)\\]")?.text()
