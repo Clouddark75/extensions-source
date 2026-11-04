@@ -1,15 +1,11 @@
-plugins {
-    alias(kei.plugins.extension)
+
+ext {
+    extName = 'Rncalation'
+    extClass = '.Rncalation'
+    extVersionCode = 64
+    baseUrl = 'https://rncalation.online'
+    overrideVersionCode = 64
+    isNsfw = false
 }
 
-keiyoushi {
-    name = "Rncalation"
-    versionCode = 64
-    contentWarning = ContentWarning.NSFW
-    libVersion = "1.4"
-
-    source {
-        lang = "es"
-        baseUrl = "https://rncalation.online"
-    }
-}
+apply plugin: "kei.plugins.extension.legacy"
