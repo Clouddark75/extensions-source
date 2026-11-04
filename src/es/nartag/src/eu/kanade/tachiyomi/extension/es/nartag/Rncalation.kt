@@ -153,16 +153,38 @@ class Rncalation : HttpSource() {
 
     private fun chapterListRequest(slug: String, page: Int) = GET("$baseUrl/comics/$slug/chapters?page=$page", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> = response.asJsoup()
-        .select("div[data-chapter-group]")
-        .flatMap { group ->
+    override fun chapterListParse(response: Response): List<SChapter> {
+        val document = response.asJsoup()
+
+        val groups = document.select("div[data-chapter-group]")
+        val links = document.select("a[data-chapter-id]")
+        val versions = document.select("div[data-chgroup-version-row]")
+
+        android.util.Log.d(
+            "Rncalation",
+            "Groups: ${groups.size}, Versions: ${versions.size}, Links: ${links.size}",
+        )
+
+        groups.forEach { group ->
+            android.util.Log.d(
+                "Rncalation",
+                "Chapter ${group.attr("data-chapter-num")}: " +
+                    "versions=${group.select("div[data-chgroup-version-row]").size}, " +
+                    "links=${group.select("a[data-chapter-id]").size}",
+            )
+        }
+
+        return groups.flatMap { group ->
             val chapterNumber = group.attr("data-chapter-num").toFloatOrNull() ?: 0f
             val chapterName = group.attr("data-chapter-label").ifEmpty {
                 "Capítulo ${chapterNumber.toInt()}"
             }
 
             group.select("a[data-chapter-id]").mapNotNull { link ->
-                val version = link.closest("div[data-chgroup-version-row]") ?: return@mapNotNull null
+                val version = link.parents().firstOrNull {
+                    it.hasAttr("data-chgroup-version-row")
+                } ?: return@mapNotNull null
+
                 val groupName = version.selectFirst("[data-cl-group]")?.text()?.trim()
                 val timestamp = version.selectFirst("[data-ts]")?.attr("data-ts")
 
@@ -180,6 +202,7 @@ class Rncalation : HttpSource() {
                 }
             }
         }
+    }
 
     override fun pageListParse(response: Response): List<Page> {
         val document = response.asJsoup()
