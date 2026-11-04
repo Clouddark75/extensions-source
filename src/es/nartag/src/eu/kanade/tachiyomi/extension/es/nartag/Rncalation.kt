@@ -161,8 +161,8 @@ class Rncalation : HttpSource() {
                 "Capítulo ${chapterNumber.toInt()}"
             }
 
-            group.select("div[data-chgroup-version-row]").mapNotNull { version ->
-                val link = version.selectFirst("a[data-chapter-id]") ?: return@mapNotNull null
+            group.select("a[data-chapter-id]").mapNotNull { link ->
+                val version = link.closest("div[data-chgroup-version-row]") ?: return@mapNotNull null
                 val groupName = version.selectFirst("[data-cl-group]")?.text()?.trim()
                 val timestamp = version.selectFirst("[data-ts]")?.attr("data-ts")
 
