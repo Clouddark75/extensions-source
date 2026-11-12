@@ -29,11 +29,6 @@ full_rebuild = sys.argv[4].lower() == "true"
 
 artifacts_dir = Path.home() / "apk-artifacts"
 
-if not repo_dir.is_dir():
-    raise FileNotFoundError(
-        f"Repository directory does not exist: {repo_dir}"
-    )
-
 if not full_rebuild and not artifacts_dir.is_dir():
     raise FileNotFoundError(
         f"Artifacts directory does not exist: {artifacts_dir}"
