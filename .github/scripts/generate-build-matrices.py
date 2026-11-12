@@ -1,3 +1,4 @@
+
 import itertools
 import json
 import os
@@ -9,11 +10,12 @@ from pathlib import Path
 EXTENSION_REGEX = re.compile(r"^src/(?P<lang>\w+)/(?P<extension>\w+)")
 MULTISRC_LIB_REGEX = re.compile(r"^lib-multisrc/(?P<multisrc>\w+)")
 LIB_REGEX = re.compile(r"^lib/(?P<lib>\w+)")
-MODULE_REGEX = re.compile(r"^:src:(?P<lang>\w+):(?P<extension>\w+)$")
 PKG_NAME_REGEX = re.compile(r"""pkgName\s*=\s*["']([^"']+)["']""")
 CORE_FILES_REGEX = re.compile(
     r"^(common/|compiler/|core/|gradle/|build\.gradle\.kts|gradle\.properties|settings\.gradle\.kts)"
 )
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 
 def run_command(command: str) -> str:
     result = subprocess.run(command, capture_output=True, text=True, shell=True)
@@ -24,16 +26,12 @@ def run_command(command: str) -> str:
 
 
 def resolve_module_suffix(ref: str, lang: str, extension: str) -> str:
-    """
-    returns the effective applicationId suffix of a module: the DSL override
-    (pkgName) if set, else the directory-derived default
-    """
     build_file = Path("src", lang, extension, "build.gradle.kts")
     content = None
+
     if build_file.is_file():
         content = build_file.read_text("utf-8")
     elif ref:
-        # the module was deleted; read its build file from the base ref
         result = subprocess.run(
             f"git show {ref}:src/{lang}/{extension}/build.gradle.kts",
             capture_output=True,
@@ -53,10 +51,6 @@ def resolve_module_suffix(ref: str, lang: str, extension: str) -> str:
 
 
 def resolve_dependent_libs(libs: set[str]) -> set[str]:
-    """
-    returns all libs which depend on any of the passed libs (/lib),
-    recursively resolving transitive dependencies
-    """
     if not libs:
         return set()
 
@@ -89,10 +83,6 @@ def resolve_dependent_libs(libs: set[str]) -> set[str]:
 
 
 def resolve_multisrc_lib(libs: set[str]) -> set[str]:
-    """
-    returns all multisrc which depend on any of the
-    passed libs (/lib)
-    """
     if not libs:
         return set()
 
@@ -109,30 +99,29 @@ def resolve_multisrc_lib(libs: set[str]) -> set[str]:
 
         content = build_file.read_text("utf-8")
 
-        if (lib_dependency.search(content)):
+        if lib_dependency.search(content):
             multisrcs.add(multisrc.name)
 
     return multisrcs
 
+
 def resolve_ext(multisrcs: set[str], libs: set[str]) -> set[tuple[str, str]]:
-    """
-    returns all extensions which depend on any of the
-    passed multisrcs or libs
-    """
     if not multisrcs and not libs:
         return set()
 
-    multisrc_pattern = '|'.join(map(re.escape, multisrcs)) if multisrcs else None
-    lib_pattern = '|'.join(map(re.escape, libs)) if libs else None
-
     patterns = []
-    if multisrc_pattern:
+
+    if multisrcs:
+        multisrc_pattern = "|".join(map(re.escape, multisrcs))
         patterns.append(rf"theme\s*=\s*['\"]({multisrc_pattern})['\"]")
-    if lib_pattern:
-        patterns.append(rf"project\([\"']:(?:lib):({lib_pattern})[\"']\)")
 
-    regex = re.compile('|'.join(patterns))
+    if libs:
+        lib_pattern = "|".join(map(re.escape, libs))
+        patterns.append(
+            rf"project\([\"']:(?:lib):({lib_pattern})['\"]\)"
+        )
 
+    regex = re.compile("|".join(patterns))
     extensions = set()
 
     for lang in Path("src").iterdir():
@@ -148,8 +137,55 @@ def resolve_ext(multisrcs: set[str], libs: set[str]) -> set[tuple[str, str]]:
 
     return extensions
 
-def get_module_list(ref: str) -> tuple[list[str], list[str], list[str], bool]:
-    diff_output = run_command(f"git diff --name-status {ref}").splitlines()
+
+def get_all_modules(ref: str) -> tuple[list[str], list[str]]:
+    modules = []
+    deleted = []
+
+    for lang in Path("src").iterdir():
+        for extension in lang.iterdir():
+            if not (extension / "build.gradle.kts").is_file():
+                continue
+
+            modules.append(f":src:{lang.name}:{extension.name}")
+            deleted.append(
+                resolve_module_suffix(ref, lang.name, extension.name)
+            )
+
+    return modules, deleted
+
+
+def get_all_lint_modules() -> list[str]:
+    modules = [":core"]
+
+    modules.extend(
+        f":{directory}:{module.name}"
+        for directory in ("lib", "lib-multisrc")
+        for module in Path(directory).iterdir()
+        if (module / "build.gradle.kts").is_file()
+    )
+
+    return sorted(modules)
+
+
+def get_module_list(
+    ref: str,
+    force_full_rebuild: bool = False,
+) -> tuple[list[str], list[str], list[str], bool]:
+
+    if force_full_rebuild:
+        modules, deleted = get_all_modules(ref)
+
+        return (
+            sorted(modules),
+            sorted(deleted),
+            get_all_lint_modules(),
+            True,
+        )
+
+    diff_output = run_command(
+        f"git diff --name-status {ref}"
+    ).splitlines()
 
     changed_files = [
         file
@@ -170,103 +206,118 @@ def get_module_list(ref: str) -> tuple[list[str], list[str], list[str], bool]:
         elif match := EXTENSION_REGEX.search(file):
             lang = match.group("lang")
             extension = match.group("extension")
+
             if Path("src", lang, extension).is_dir():
-                modules.add(f':src:{lang}:{extension}')
-            deleted.add(resolve_module_suffix(ref, lang, extension))
+                modules.add(f":src:{lang}:{extension}")
+
+            deleted.add(
+                resolve_module_suffix(ref, lang, extension)
+            )
 
         elif match := MULTISRC_LIB_REGEX.search(file):
             multisrc = match.group("multisrc")
+
             if Path("lib-multisrc", multisrc).is_dir():
                 multisrcs.add(multisrc)
 
         elif match := LIB_REGEX.search(file):
             lib = match.group("lib")
+
             if Path("lib", lib).is_dir():
                 libs.add(lib)
 
     if core_files_changed:
-        (all_modules, all_deleted) = get_all_modules(ref)
+        all_modules, all_deleted = get_all_modules(ref)
 
-        # update existing set so we include deleted extensions
         modules.update(all_modules)
         deleted.update(all_deleted)
 
-        return sorted(modules), sorted(deleted), get_all_lint_modules(), True
+        return (
+            sorted(modules),
+            sorted(deleted),
+            get_all_lint_modules(),
+            True,
+        )
 
-    # Resolve libs that depend on the changed libs (recursively)
-    libs.update(
-        resolve_dependent_libs(libs)
-    )
+    libs.update(resolve_dependent_libs(libs))
+    multisrcs.update(resolve_multisrc_lib(libs))
 
-    # Resolve multisrcs that depend on the changed libs
-    multisrcs.update(
-        resolve_multisrc_lib(libs)
-    )
-
-    # Resolve extensions that depend on the changed multisrcs or libs
     extensions = resolve_ext(multisrcs, libs)
-    modules.update([f":src:{lang}:{extension}" for lang, extension in extensions])
-    deleted.update([resolve_module_suffix(ref, lang, extension) for lang, extension in extensions])
+
+    modules.update(
+        f":src:{lang}:{extension}"
+        for lang, extension in extensions
+    )
+
+    deleted.update(
+        resolve_module_suffix(ref, lang, extension)
+        for lang, extension in extensions
+    )
 
     lint_modules = {
         *(f":lib:{lib}" for lib in libs),
         *(f":lib-multisrc:{multisrc}" for multisrc in multisrcs),
     }
 
-    return sorted(modules), sorted(deleted), sorted(lint_modules), False
-
-def get_all_modules(ref: str) -> tuple[list[str], list[str]]:
-    modules = []
-    deleted = []
-    for lang in Path("src").iterdir():
-        for extension in lang.iterdir():
-            modules.append(f":src:{lang.name}:{extension.name}")
-            deleted.append(resolve_module_suffix(ref, lang.name, extension.name))
-    return modules, deleted
-
-
-def get_all_lint_modules() -> list[str]:
-    modules = [":core"]
-    modules.extend(
-        f":{directory}:{module.name}"
-        for directory in ("lib", "lib-multisrc")
-        for module in Path(directory).iterdir()
-        if (module / "build.gradle.kts").is_file()
+    return (
+        sorted(modules),
+        sorted(deleted),
+        sorted(lint_modules),
+        False,
     )
-    return sorted(modules)
 
 
 def create_matrix(modules: list[str]) -> dict:
     return {
         "chunk": [
             {"number": i + 1, "modules": chunk}
-            for i, chunk in enumerate(itertools.batched(
-                modules,
-                int(os.getenv("CI_CHUNK_SIZE", 65))
-            ))
+            for i, chunk in enumerate(
+                itertools.batched(
+                    modules,
+                    int(os.getenv("CI_CHUNK_SIZE", 65)),
+                )
+            )
         ]
     }
 
 
 def main() -> None:
-    _, ref = sys.argv
-    modules, deleted, lint_modules, is_full_rebuild = get_module_list(ref)
+    if len(sys.argv) not in (2, 3):
+        print(
+            "Usage: generate-build-matrices.py <base-ref> [force-full-rebuild]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    ref = sys.argv[1]
+    force_full_rebuild = (
+        len(sys.argv) == 3
+        and sys.argv[2].lower() == "true"
+    )
+
+    modules, deleted, lint_modules, is_full_rebuild = get_module_list(
+        ref,
+        force_full_rebuild,
+    )
 
     matrix = create_matrix(modules)
 
     print(
         f"Module chunks to build:\n{json.dumps(matrix, indent=2)}\n\n"
         f"Modules to lint:\n{json.dumps(lint_modules, indent=2)}\n\n"
-        f"Module to delete:\n{json.dumps(deleted, indent=2)}"
+        f"Modules to delete:\n{json.dumps(deleted, indent=2)}\n\n"
+        f"Full rebuild: {is_full_rebuild}"
     )
 
     if os.getenv("CI") == "true":
-        with open(os.getenv("GITHUB_OUTPUT"), 'a') as out_file:
+        with open(os.getenv("GITHUB_OUTPUT"), "a") as out_file:
             out_file.write(f"matrix={json.dumps(matrix)}\n")
             out_file.write(f"lint_modules={json.dumps(lint_modules)}\n")
             out_file.write(f"delete={json.dumps(deleted)}\n")
-            if is_full_rebuild:
-                out_file.write("full_rebuild=true\n")
+            out_file.write(
+                f"full_rebuild={'true' if is_full_rebuild else 'false'}\n"
+            )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
