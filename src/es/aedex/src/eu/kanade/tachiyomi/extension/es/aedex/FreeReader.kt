@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.util.Base64
@@ -66,7 +67,7 @@ class FreeReader {
                         if (continuation.isActive) continuation.resumeWithException(t)
                     }
 
-                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                         if (continuation.isActive) continuation.resumeWithException(IOException("Free reader closed: $code"))
                     }
                 },
