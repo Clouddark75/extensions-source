@@ -15,12 +15,24 @@ import java.util.Locale
 
 @Source
 abstract class BarManga : Madara() {
+    override val supportsPostId = false
+
     override val chapterDateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT)
 
     override val mangaDetailsSelectorTitle = ".breadcrumb > li:last-child > a"
 
     override fun parsePages(document: Document): List<Page> {
-        val script = document.selectFirst(".manga-reader-container + script")?.data() ?: return super.parsePages(document)
+        val script = document.selectFirst(".manga-reader-container + script")?.data()
+            ?: return super.parsePages(document)
+                .mapNotNull { page ->
+                    page.imageUrl
+                        ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+                        ?.let { page.url to it }
+                }
+                .mapIndexed { index, (url, imageUrl) ->
+                    Page(index, url, imageUrl)
+                }
+
         val tokens = PAGE_TOKENS_REGEX.find(script)?.groupValues?.last()?.parseAs<Map<String, String>>() ?: return emptyList()
         val nonce = NONCE_REGEX.find(script)?.groupValues?.last() ?: return emptyList()
         val action = ACTION_REGEX.find(script)?.groupValues?.last() ?: return emptyList()
