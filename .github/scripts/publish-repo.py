@@ -40,9 +40,11 @@ if not full_rebuild and not artifacts_dir.is_dir():
 # ---------------------------------------------------------------------------
 
 repo_apk_dir = repo_dir / "apk"
+repo_jar_dir = repo_dir / "jar"
 repo_icon_dir = repo_dir / "icon"
 
 repo_apk_dir.mkdir(parents=True, exist_ok=True)
+repo_jar_dir.mkdir(parents=True, exist_ok=True)
 repo_icon_dir.mkdir(parents=True, exist_ok=True)
 
 
