@@ -118,7 +118,7 @@ jobs:
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 -d > signingkey.jks
 
-      - name: Build extensions (${{ matrix.chunk.number }})
+      - name: Build APKs and JVM JARs
         env:
           MODULES: ${{ join(matrix.chunk.modules, ' ') }}
           ALIAS: ${{ secrets.ALIAS }}
@@ -133,6 +133,7 @@ jobs:
 
           for module in $MODULES; do
             TASKS+=("${module}:assembleRelease")
+            TASKS+=("${module}:createReleaseExtensionJar")
           done
 
           echo "Gradle tasks:"
@@ -142,7 +143,33 @@ jobs:
 
           ./gradlew "${TASKS[@]}"
 
-      - name: Upload APK artifacts
+      - name: Verify generated APKs and JARs
+        run: |
+          echo "========================================"
+          echo "Generated APK files"
+          echo "========================================"
+
+          find . -type f \
+            -path "*/build/outputs/apk/release/*" \
+            -name "*.apk" -print
+
+          echo "========================================"
+          echo "Generated JAR files"
+          echo "========================================"
+
+          find . -type f \
+            -path "*/build/outputs/jar/release/*" \
+            -name "*.jar" -print
+
+          echo "========================================"
+          echo "JAR count"
+          echo "========================================"
+
+          find . -type f \
+            -path "*/build/outputs/jar/release/*" \
+            -name "*.jar" | wc -l
+
+      - name: Upload APK and JAR artifacts
         if: github.repository == 'Clouddark75/extensions-source'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -151,11 +178,12 @@ jobs:
             **/build/outputs/apk/release/*.apk
             **/build/outputs/jar/release/*.jar
             **/build/keiyoushi-source-info.json
+          if-no-files-found: warn
           retention-days: 1
 
       - name: Clean up CI files
         if: always()
-        run: rm signingkey.jks
+        run: rm -f signingkey.jks
 
   publish:
     name: Publish repo3
@@ -174,7 +202,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Download APK artifacts
+      - name: Download APK and JAR artifacts
         if: needs.build.result == 'success'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
