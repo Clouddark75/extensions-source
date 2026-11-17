@@ -266,6 +266,7 @@ jobs:
             "$GITHUB_WORKSPACE/repo3" \
             "$FULL_REBUILD"
 
+
       - name: Commit repo3
         working-directory: repo3
         run: |
@@ -281,12 +282,18 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes detected."
 
-            git add apk/
-            git add icon/
+            git add -A -- apk/ icon/ jar/
             git add index.json
             git add index.min.json
             git add index.html
             git add content-hashes.json
+            git add repo.json
+
+            echo "========================================"
+            echo "Files staged for commit"
+            echo "========================================"
+
+            git status --short
 
             git commit -m "Update extensions repo"
 
