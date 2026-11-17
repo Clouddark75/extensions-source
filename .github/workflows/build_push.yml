@@ -35,6 +35,26 @@ jobs:
       full_rebuild: ${{ steps.generate-matrices.outputs.full_rebuild }}
 
     steps:
+
+      - name: Install Android SDK Build Tools
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK_ROOT"
+
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::Android sdkmanager not found at $SDKMANAGER"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "build-tools;35.0.0"
+
+          echo "$SDK_ROOT/build-tools/35.0.0" >> "$GITHUB_PATH"
+
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" version
+    
       - name: Checkout selected branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
