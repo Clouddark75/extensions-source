@@ -36,6 +36,21 @@ if not full_rebuild and not artifacts_dir.is_dir():
 
 
 # ---------------------------------------------------------------------------
+# Repository configuration
+# ---------------------------------------------------------------------------
+
+REPO_BASE_URL = (
+    "https://raw.githubusercontent.com/"
+    "Clouddark75/extensions-source/repo3"
+)
+
+REPO_NAME = "Clouddark75 Extensions"
+REPO_WEBSITE = (
+    "https://github.com/Clouddark75/extensions-source"
+)
+
+
+# ---------------------------------------------------------------------------
 # Directories
 # ---------------------------------------------------------------------------
 
@@ -49,6 +64,8 @@ repo_icon_dir.mkdir(parents=True, exist_ok=True)
 
 
 def clear_directory(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+
     for item in directory.iterdir():
         if item.is_dir():
             shutil.rmtree(item)
@@ -58,19 +75,26 @@ def clear_directory(directory: Path) -> None:
 
 # A full rebuild makes the build output the source of truth.
 if full_rebuild:
-    print("Full rebuild: clearing previous APKs and icons")
+    print("Full rebuild: clearing previous APKs, JARs and icons")
+
     clear_directory(repo_apk_dir)
+    clear_directory(repo_jar_dir)
     clear_directory(repo_icon_dir)
 
 
 # ---------------------------------------------------------------------------
-# Android build tools / aapt
+# Android build tools / aapt / apksigner
 # ---------------------------------------------------------------------------
 
 android_home = os.environ.get("ANDROID_HOME")
 
 if not android_home:
-    raise EnvironmentError("ANDROID_HOME is not set")
+    android_home = os.environ.get("ANDROID_SDK_ROOT")
+
+if not android_home:
+    raise EnvironmentError(
+        "ANDROID_HOME and ANDROID_SDK_ROOT are not set"
+    )
 
 build_tools_dir = Path(android_home) / "build-tools"
 
@@ -94,9 +118,13 @@ if not build_tools:
     )
 
 aapt = build_tools[-1] / "aapt"
+apksigner = build_tools[-1] / "apksigner"
 
 if not aapt.exists():
     raise FileNotFoundError(f"aapt not found: {aapt}")
+
+if not apksigner.exists():
+    raise FileNotFoundError(f"apksigner not found: {apksigner}")
 
 
 # ---------------------------------------------------------------------------
@@ -106,17 +134,21 @@ if not aapt.exists():
 PACKAGE_NAME_REGEX = re.compile(r"package: name='([^']+)'")
 VERSION_CODE_REGEX = re.compile(r"versionCode='([^']+)'")
 VERSION_NAME_REGEX = re.compile(r"versionName='([^']+)'")
+
 IS_NSFW_REGEX = re.compile(
     r"'tachiyomi.extension.nsfw' value='([^']+)'"
 )
+
 APPLICATION_LABEL_REGEX = re.compile(
     r"^application-label:'([^']+)'",
     re.MULTILINE,
 )
+
 APPLICATION_ICON_REGEX = re.compile(
     r"^application-icon-\d+:'([^']+)'",
     re.MULTILINE,
 )
+
 LANGUAGE_REGEX = re.compile(
     r"tachiyomi-([^.]+)"
 )
@@ -139,13 +171,13 @@ def get_match(
     pattern: re.Pattern[str],
     text: str,
     description: str,
-    apk: Path,
+    file: Path,
 ) -> str:
     match = pattern.search(text)
 
     if match is None:
         raise ValueError(
-            f"Could not find {description} in {apk.name}"
+            f"Could not find {description} in {file.name}"
         )
 
     return match.group(1)
@@ -242,12 +274,57 @@ def get_nsfw(
     return 0
 
 
+def get_content_warning(
+    info: dict,
+    nsfw: int,
+) -> str:
+    content_warning = info.get("contentWarning")
+
+    if isinstance(content_warning, str):
+        normalized = content_warning.upper()
+
+        if normalized in {"SAFE", "MIXED", "NSFW"}:
+            return normalized
+
+    return "MIXED" if nsfw else "SAFE"
+
+
 def normalize_apk_name(apk: Path) -> str:
     return apk.name.replace("-release.apk", ".apk")
 
 
+def normalize_jar_name(jar: Path) -> str:
+    return jar.name.replace("-release.jar", ".jar")
+
+
+def get_signing_fingerprint(apk: Path) -> str:
+    output = subprocess.check_output(
+        [
+            str(apksigner),
+            "verify",
+            "--print-certs",
+            str(apk),
+        ],
+        text=True,
+    )
+
+    match = re.search(
+        r"Signer #1 certificate SHA-256 digest:\s*([a-fA-F0-9]+)",
+        output,
+    )
+
+    if match is None:
+        raise ValueError(
+            f"Could not extract signing fingerprint from {apk.name}"
+        )
+
+    return match.group(1).lower()
+
+
 def remove_module_files(module: str) -> None:
     apk_pattern = f"tachiyomi-{module}-v*.apk"
+    jar_pattern = f"tachiyomi-{module}-v*.jar"
+
     icon_pattern = (
         f"eu.kanade.tachiyomi.extension.{module}.png"
     )
@@ -256,9 +333,36 @@ def remove_module_files(module: str) -> None:
         print(f"  Removing APK: {file.name}")
         file.unlink(missing_ok=True)
 
+    for file in repo_jar_dir.glob(jar_pattern):
+        print(f"  Removing JAR: {file.name}")
+        file.unlink(missing_ok=True)
+
     for file in repo_icon_dir.glob(icon_pattern):
         print(f"  Removing icon: {file.name}")
         file.unlink(missing_ok=True)
+
+
+def read_json(path: Path, default):
+    if not path.exists():
+        return default
+
+    with path.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def write_json(
+    path: Path,
+    data,
+    indent: int = 2,
+) -> None:
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(
+            data,
+            file,
+            ensure_ascii=False,
+            indent=indent,
+        )
+        file.write("\n")
 
 
 # ---------------------------------------------------------------------------
@@ -267,32 +371,24 @@ def remove_module_files(module: str) -> None:
 
 index_path = repo_dir / "index.json"
 hashes_path = repo_dir / "content-hashes.json"
+repo_metadata_path = repo_dir / "repo.json"
 
 if full_rebuild:
     remote_index = []
     content_hashes = {}
 else:
-    if index_path.exists():
-        with index_path.open(encoding="utf-8") as file:
-            remote_index = json.load(file)
+    remote_index = read_json(index_path, [])
+    content_hashes = read_json(hashes_path, {})
 
-        if not isinstance(remote_index, list):
-            raise ValueError(
-                f"{index_path} does not contain a JSON array"
-            )
-    else:
-        remote_index = []
+    if not isinstance(remote_index, list):
+        raise ValueError(
+            f"{index_path} does not contain a JSON array"
+        )
 
-    if hashes_path.exists():
-        with hashes_path.open(encoding="utf-8") as file:
-            content_hashes = json.load(file)
-
-        if not isinstance(content_hashes, dict):
-            raise ValueError(
-                f"{hashes_path} does not contain a JSON object"
-            )
-    else:
-        content_hashes = {}
+    if not isinstance(content_hashes, dict):
+        raise ValueError(
+            f"{hashes_path} does not contain a JSON object"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +411,7 @@ if not full_rebuild:
 
 
 # ---------------------------------------------------------------------------
-# Collect source-info files and APKs
+# Collect source-info files and APKs / JARs
 # ---------------------------------------------------------------------------
 
 info_files = (
@@ -329,6 +425,8 @@ print(f"Found {len(info_files)} source-info files")
 new_entries: list[dict] = []
 rebuilt_packages: set[str] = set()
 
+signing_fingerprint: str | None = None
+
 for info_file in info_files:
     with info_file.open(encoding="utf-8") as file:
         info = json.load(file)
@@ -339,6 +437,10 @@ for info_file in info_files:
     if not full_rebuild:
         print(f"Processing: {package_name}")
 
+    # -----------------------------------------------------------------------
+    # Locate APK
+    # -----------------------------------------------------------------------
+
     apk_dir = info_file.parent / "outputs" / "apk" / "release"
     apk_files = sorted(apk_dir.glob("*.apk"))
 
@@ -348,6 +450,21 @@ for info_file in info_files:
         )
 
     apk = apk_files[0]
+
+    # -----------------------------------------------------------------------
+    # Locate JAR
+    # -----------------------------------------------------------------------
+
+    jar_dir = info_file.parent / "outputs" / "jar" / "release"
+    jar_files = sorted(jar_dir.glob("*.jar"))
+
+    if not jar_files:
+        raise FileNotFoundError(
+            f"{package_name}: no release JAR found under {jar_dir}"
+        )
+
+    jar = jar_files[0]
+
     badging = get_apk_badging(apk)
 
     package_info = next(
@@ -377,6 +494,10 @@ for info_file in info_files:
             f"source-info says {package_name}, "
             f"APK says {badging_package_name}"
         )
+
+    # -----------------------------------------------------------------------
+    # Version information
+    # -----------------------------------------------------------------------
 
     version_code_value = info.get("versionCode")
 
@@ -411,8 +532,18 @@ for info_file in info_files:
         )
 
     sources = info.get("sources", [])
-    language = get_language(normalize_apk_name(apk), sources)
+
+    language = get_language(
+        normalize_apk_name(apk),
+        sources,
+    )
+
     nsfw = get_nsfw(info, badging)
+    content_warning = get_content_warning(info, nsfw)
+
+    # -----------------------------------------------------------------------
+    # Content hash
+    # -----------------------------------------------------------------------
 
     content_hash = info.get("contentHash")
 
@@ -456,7 +587,7 @@ for info_file in info_files:
     content_hashes[package_name] = content_hash
 
     # -----------------------------------------------------------------------
-    # Copy APK to repo2/apk/
+    # Copy APK
     # -----------------------------------------------------------------------
 
     final_apk_name = normalize_apk_name(apk)
@@ -467,7 +598,33 @@ for info_file in info_files:
     print(f"APK: {final_apk_name}")
 
     # -----------------------------------------------------------------------
-    # Extract icon to repo2/icon/
+    # Copy JAR
+    # -----------------------------------------------------------------------
+
+    final_jar_name = normalize_jar_name(jar)
+    destination_jar = repo_jar_dir / final_jar_name
+
+    shutil.copy2(jar, destination_jar)
+
+    print(f"JAR: {final_jar_name}")
+
+    # -----------------------------------------------------------------------
+    # Signing fingerprint
+    # -----------------------------------------------------------------------
+
+    current_fingerprint = get_signing_fingerprint(apk)
+
+    if signing_fingerprint is None:
+        signing_fingerprint = current_fingerprint
+    elif signing_fingerprint != current_fingerprint:
+        raise ValueError(
+            "Different APK signing certificates detected. "
+            f"Expected {signing_fingerprint}, "
+            f"found {current_fingerprint} in {apk.name}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Extract icon
     # -----------------------------------------------------------------------
 
     extract_icon(
@@ -477,7 +634,7 @@ for info_file in info_files:
     )
 
     # -----------------------------------------------------------------------
-    # Build old-style index entry
+    # Build repository index entry
     # -----------------------------------------------------------------------
 
     source_entries = []
@@ -499,10 +656,15 @@ for info_file in info_files:
         "name": name,
         "pkg": package_name,
         "apk": final_apk_name,
+        "jar": final_jar_name,
+        "apkUrl": f"{REPO_BASE_URL}/apk/{final_apk_name}",
+        "jarUrl": f"{REPO_BASE_URL}/jar/{final_jar_name}",
+        "icon": f"{package_name}.png",
         "lang": language,
         "code": version_code,
         "version": version_name,
         "nsfw": nsfw,
+        "contentWarning": content_warning,
         "sources": source_entries,
     }
 
@@ -536,14 +698,10 @@ final_index.sort(key=lambda item: item["pkg"])
 # Write index.json
 # ---------------------------------------------------------------------------
 
-with index_path.open("w", encoding="utf-8") as index_file:
-    json.dump(
-        final_index,
-        index_file,
-        ensure_ascii=False,
-        indent=2,
-    )
-    index_file.write("\n")
+write_json(
+    index_path,
+    final_index,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -571,15 +729,43 @@ with index_min_path.open("w", encoding="utf-8") as index_min_file:
 # Write content-hashes.json
 # ---------------------------------------------------------------------------
 
-with hashes_path.open("w", encoding="utf-8") as hashes_file:
-    json.dump(
-        content_hashes,
-        hashes_file,
-        ensure_ascii=False,
-        indent=2,
-        sort_keys=True,
+write_json(
+    hashes_path,
+    content_hashes,
+)
+
+
+# ---------------------------------------------------------------------------
+# Write repo.json for Suwayomi
+# ---------------------------------------------------------------------------
+
+if signing_fingerprint is None:
+    previous_repo = read_json(repo_metadata_path, {})
+
+    signing_fingerprint = (
+        previous_repo.get("meta", {}).get(
+            "signingKeyFingerprint"
+        )
     )
-    hashes_file.write("\n")
+
+if signing_fingerprint:
+    repo_metadata = {
+        "meta": {
+            "name": REPO_NAME,
+            "website": REPO_WEBSITE,
+            "signingKeyFingerprint": signing_fingerprint,
+        }
+    }
+
+    write_json(
+        repo_metadata_path,
+        repo_metadata,
+    )
+else:
+    print(
+        "Warning: signing fingerprint unavailable; "
+        "repo.json was not updated."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -594,7 +780,7 @@ with index_html_path.open("w", encoding="utf-8") as index_html_file:
         "<html>\n"
         "<head>\n"
         '<meta charset="UTF-8">\n'
-        "<title>apks</title>\n"
+        "<title>Clouddark75 Extensions</title>\n"
         "</head>\n"
         "<body>\n"
         "<pre>\n"
@@ -605,13 +791,28 @@ with index_html_path.open("w", encoding="utf-8") as index_html_file:
             f"apk/{entry['apk']}",
             quote=True,
         )
+
         name_escaped = html.escape(entry["name"])
 
         index_html_file.write(
             f'<a href="{apk_escaped}">'
-            f"{name_escaped}"
+            f"{name_escaped} (APK)"
             "</a>\n"
         )
+
+        jar_name = entry.get("jar")
+
+        if jar_name:
+            jar_escaped = html.escape(
+                f"jar/{jar_name}",
+                quote=True,
+            )
+
+            index_html_file.write(
+                f'<a href="{jar_escaped}">'
+                f"{name_escaped} (JAR)"
+                "</a>\n"
+            )
 
     index_html_file.write(
         "</pre>\n"
@@ -624,13 +825,19 @@ with index_html_path.open("w", encoding="utf-8") as index_html_file:
 # Summary
 # ---------------------------------------------------------------------------
 
+jar_count = len(list(repo_jar_dir.glob("*.jar")))
+apk_count = len(list(repo_apk_dir.glob("*.apk")))
+
 print()
 print("========================================")
 print("Repository published successfully")
 print("========================================")
 print(f"Repository: {repo_dir}")
 print(f"APK directory: {repo_apk_dir}")
+print(f"JAR directory: {repo_jar_dir}")
 print(f"Icon directory: {repo_icon_dir}")
+print(f"APKs: {apk_count}")
+print(f"JARs: {jar_count}")
 print(f"Extensions rebuilt: {len(new_entries)}")
 print(f"Extensions in index: {len(final_index)}")
 print(f"Deleted modules: {len(to_delete)}")
