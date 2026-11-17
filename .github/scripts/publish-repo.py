@@ -297,29 +297,36 @@ def normalize_jar_name(jar: Path) -> str:
     return jar.name.replace("-release.jar", ".jar")
 
 
-def get_signing_fingerprint(apk: Path) -> str:
-    output = subprocess.check_output(
-        [
-            str(apksigner),
-            "verify",
-            "--print-certs",
-            str(apk),
-        ],
+def get_signing_fingerprint(apk):
+    result = subprocess.run(
+        ["apksigner", "verify", "--print-certs", str(apk)],
+        capture_output=True,
         text=True,
     )
 
-    match = re.search(
-        r"Signer #1 certificate SHA-256 digest:\s*([a-fA-F0-9]+)",
-        output,
-    )
+    output = (result.stdout or "") + "\n" + (result.stderr or "")
 
-    if match is None:
+    if result.returncode != 0:
         raise ValueError(
-            f"Could not extract signing fingerprint from {apk.name}"
+            f"apksigner no pudo verificar {apk.name}.\n"
+            f"Salida:\n{output}"
         )
 
-    return match.group(1).lower()
+    patterns = [
+        r"Signer #\d+ certificate SHA-256 digest:\s*([a-fA-F0-9:]+)",
+        r"certificate SHA-256 digest:\s*([a-fA-F0-9:]+)",
+        r"SHA-256 digest:\s*([a-fA-F0-9:]+)",
+    ]
 
+    for pattern in patterns:
+        match = re.search(pattern, output, re.IGNORECASE)
+        if match:
+            return match.group(1).replace(":", "").lower()
+
+    raise ValueError(
+        f"No se encontró el certificado SHA-256 en {apk.name}.\n"
+        f"Salida completa de apksigner:\n{output}"
+    )
 
 def remove_module_files(module: str) -> None:
     apk_pattern = f"tachiyomi-{module}-v*.apk"
