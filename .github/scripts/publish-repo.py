@@ -298,8 +298,50 @@ def normalize_jar_name(jar: Path) -> str:
 
 
 def get_signing_fingerprint(apk):
+    sdk_roots = [
+        os.environ.get("ANDROID_HOME"),
+        os.environ.get("ANDROID_SDK_ROOT"),
+        "/usr/local/lib/android/sdk",
+        "/opt/android-sdk",
+    ]
+
+    apksigner = shutil.which("apksigner")
+
+    if not apksigner:
+        for sdk_root in sdk_roots:
+            if not sdk_root:
+                continue
+
+            build_tools = Path(sdk_root) / "build-tools"
+
+            if build_tools.is_dir():
+                versions = sorted(
+                    build_tools.iterdir(),
+                    key=lambda p: tuple(
+                        int(x) if x.isdigit() else 0
+                        for x in p.name.split(".")
+                    ),
+                    reverse=True,
+                )
+
+                for version in versions:
+                    candidate = version / "apksigner"
+
+                    if candidate.is_file():
+                        apksigner = str(candidate)
+                        break
+
+            if apksigner:
+                break
+
+    if not apksigner:
+        raise FileNotFoundError(
+            "No se encontró apksigner. "
+            "Verifica que Android SDK Build Tools esté instalado."
+        )
+
     result = subprocess.run(
-        ["apksigner", "verify", "--print-certs", str(apk)],
+        [apksigner, "verify", "--print-certs", str(apk)],
         capture_output=True,
         text=True,
     )
@@ -320,6 +362,7 @@ def get_signing_fingerprint(apk):
 
     for pattern in patterns:
         match = re.search(pattern, output, re.IGNORECASE)
+
         if match:
             return match.group(1).replace(":", "").lower()
 
