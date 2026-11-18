@@ -288,6 +288,7 @@ jobs:
             git add index.html
             git add content-hashes.json
             git add repo.json
+            git add index-v2.json
 
             echo "========================================"
             echo "Files staged for commit"
@@ -314,3 +315,13 @@ jobs:
 
           echo
           echo "jsDelivr cache purge completed."
+
+      - name: Purge jsDelivr cache
+        run: |
+          echo "Purging jsDelivr cache..."
+
+          for file in index.json index.min.json index-v2.json repo.json; do
+            curl -fsS \
+              "https://purge.jsdelivr.net/gh/Clouddark75/extensions-source@repo3/$file"
+            echo
+          done          
