@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.nartag
 
 import eu.kanade.tachiyomi.source.model.FilterList
@@ -9,7 +10,6 @@ import eu.kanade.tachiyomi.source.model.SMangaUpdate
 import keiyoushi.annotation.Source
 import keiyoushi.network.Fetch
 import keiyoushi.network.get
-import keiyoushi.network.rateLimit
 import keiyoushi.source.KeiSource
 import keiyoushi.utils.asJsoup
 import kotlinx.coroutines.async
@@ -18,11 +18,10 @@ import kotlinx.serialization.json.JsonElement
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import org.jsoup.nodes.Document
-import kotlin.time.Duration.Companion.seconds
 
 @Source
 abstract class Rncalation : KeiSource() {
-    override fun OkHttpClient.Builder.configureClient() = rateLimit(2, 1.seconds).addInterceptor { chain ->
+    override fun OkHttpClient.Builder.configureClient() = addInterceptor { chain ->
         val response = chain.proceed(chain.request())
         // Without the mv_ck cookie the site serves a JS page that sets it and reloads; the cookie is saved by now, so retry once
         if (response.header("Set-Cookie")?.startsWith("mv_ck=") == true && response.peekBody(4096).string().contains("mv-verifying")) {
