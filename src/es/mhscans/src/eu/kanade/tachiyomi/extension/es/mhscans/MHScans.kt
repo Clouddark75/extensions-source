@@ -247,5 +247,4 @@ class MHScans : HttpSource() {
         return ZonedDateTime.now().minus(amount.toLong(), chronoUnit)
             .toInstant().toEpochMilli()
     }
-
 }
