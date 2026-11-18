@@ -47,6 +47,7 @@ REPO_BASE_URL = (
 REPO_NAME = "Clouddark75 Extensions"
 REPO_WEBSITE = (
     "https://github.com/Clouddark75/extensions-source"
+REPO_V2_INDEX_URL = f"{REPO_BASE_URL}/index-v2.json"    
 )
 
 
@@ -474,6 +475,7 @@ print(f"Found {len(info_files)} source-info files")
 
 new_entries: list[dict] = []
 rebuilt_packages: set[str] = set()
+new_v2_entries: list[dict] = []
 
 signing_fingerprint: str | None = None
 
@@ -721,6 +723,50 @@ for info_file in info_files:
     new_entries.append(entry)
     rebuilt_packages.add(package_name)
 
+    # Build modern extension-store entry
+
+    extension_lib = (
+        info.get("extensionLib")
+        or info.get("libVersion")
+    )
+
+    if not extension_lib:
+        raise ValueError(
+            f"{package_name}: extensionLib/libVersion missing "
+            f"from {info_file}"
+        )
+
+    warning_map = {
+        "SAFE": "CONTENT_WARNING_SAFE",
+        "MIXED": "CONTENT_WARNING_MIXED",
+        "NSFW": "CONTENT_WARNING_NSFW",
+    }
+
+    modern_sources = []
+
+    for source in sources:
+        modern_sources.append({
+            "id": str(source["id"]),
+            "name": source["name"],
+            "language": source["lang"],
+            "baseUrl": source["baseUrl"],
+        })
+
+    new_v2_entries.append({
+        "name": name,
+        "packageName": package_name,
+        "resources": {
+            "apkUrl": entry["apkUrl"],
+            "jarUrl": entry["jarUrl"],
+            "iconUrl": f"{REPO_BASE_URL}/icon/{package_name}.png",
+        },
+        "extensionLib": str(extension_lib),
+        "versionCode": str(version_code),
+        "versionName": version_name,
+        "contentWarning": warning_map[content_warning],
+        "sources": modern_sources,
+    })
+
 
 # ---------------------------------------------------------------------------
 # Merge index
@@ -786,8 +832,49 @@ write_json(
 
 
 # ---------------------------------------------------------------------------
-# Write repo.json for Suwayomi
+# Write modern index-v2.json for Suwayomi
 # ---------------------------------------------------------------------------
+
+if full_rebuild:
+    final_v2_entries = list(new_v2_entries)
+else:
+    # Preserve extensions that were not rebuilt.
+    previous_v2_path = repo_dir / "index-v2.json"
+    previous_v2 = read_json(previous_v2_path, {})
+
+    previous_extensions = (
+        previous_v2.get("extensionList", {}).get("extensions", [])
+    )
+
+    rebuilt_packages_v2 = {
+        entry["packageName"]
+        for entry in new_v2_entries
+    }
+
+    deleted_packages = {
+        package_name
+        for package_name in content_hashes
+        if any(
+            package_name.endswith(f".{module}")
+            for module in to_delete
+        )
+    }
+
+    final_v2_entries = [
+        entry
+        for entry in previous_extensions
+        if entry.get("packageName") not in rebuilt_packages_v2
+        and not any(
+            entry.get("packageName", "").endswith(f".{module}")
+            for module in to_delete
+        )
+    ]
+
+    final_v2_entries.extend(new_v2_entries)
+
+final_v2_entries.sort(
+    key=lambda item: item["packageName"]
+)
 
 if signing_fingerprint is None:
     previous_repo = read_json(repo_metadata_path, {})
@@ -798,25 +885,50 @@ if signing_fingerprint is None:
         )
     )
 
-if signing_fingerprint:
-    repo_metadata = {
-        "meta": {
-            "name": REPO_NAME,
-            "website": REPO_WEBSITE,
-            "signingKeyFingerprint": signing_fingerprint,
-        }
-    }
-
-    write_json(
-        repo_metadata_path,
-        repo_metadata,
-    )
-else:
-    print(
-        "Warning: signing fingerprint unavailable; "
-        "repo.json was not updated."
+if not signing_fingerprint:
+    raise ValueError(
+        "Signing fingerprint unavailable; "
+        "cannot publish modern repository index."
     )
 
+modern_index = {
+    "name": REPO_NAME,
+    "badgeLabel": "CD75",
+    "signingKey": signing_fingerprint,
+    "contact": {
+        "website": REPO_WEBSITE,
+    },
+    "extensionList": {
+        "extensions": final_v2_entries,
+    },
+}
+
+write_json(
+    repo_dir / "index-v2.json",
+    modern_index,
+)
+
+# ---------------------------------------------------------------------------
+# Write repo.json
+# ---------------------------------------------------------------------------
+
+repo_metadata = {
+    "index_v2": REPO_V2_INDEX_URL,
+    "meta": {
+        "name": REPO_NAME,
+        "website": REPO_WEBSITE,
+        "signingKeyFingerprint": signing_fingerprint,
+    },
+}
+
+write_json(
+    repo_metadata_path,
+    repo_metadata,
+)
+
+print(
+    f"Modern index entries: {len(final_v2_entries)}"
+)
 
 # ---------------------------------------------------------------------------
 # Write index.html
