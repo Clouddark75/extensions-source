@@ -16,8 +16,12 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import rx.Observable
 import rx.schedulers.Schedulers
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 class MHScans : HttpSource() {
 
@@ -79,7 +83,7 @@ class MHScans : HttpSource() {
         val document = response.asJsoup()
 
         val mangas = document.select("div.lib-grid > a[href^=/comics/]")
-            // novel chapters are text without images, so they always end up as "No pages found"
+            // Novel chapters are text without images, so they always end up as "No pages found".
             .filterNot { it.selectFirst("div.comic-cover ~ span")?.text() == "Novel" }
             .map { element ->
                 SManga.create().apply {
@@ -88,7 +92,10 @@ class MHScans : HttpSource() {
                     thumbnail_url = element.selectFirst("img")?.absUrl("src")
                 }
             }
-        val hasNextPage = document.selectFirst("nav.lib-pagination a[aria-label=Siguiente]") != null
+
+        val hasNextPage =
+            document.selectFirst("nav.lib-pagination a[aria-label=Siguiente]") != null
+
         return MangasPage(mangas, hasNextPage)
     }
 
@@ -131,43 +138,70 @@ class MHScans : HttpSource() {
                 "cancelado", "cancelled" -> SManga.CANCELLED
                 else -> SManga.UNKNOWN
             }
+
             initialized = true
         }
     }
 
-    override fun chapterListRequest(manga: SManga): Request = GET("$baseUrl${manga.url}/chapters?page=1", headers)
+    override fun chapterListRequest(manga: SManga): Request =
+        GET("$baseUrl${manga.url}/chapters?page=1", headers)
 
-    private fun chapterPageRequest(manga: SManga, page: Int): Request = GET("$baseUrl${manga.url}/chapters?page=$page", headers)
+    private fun chapterPageRequest(manga: SManga, page: Int): Request =
+        GET("$baseUrl${manga.url}/chapters?page=$page", headers)
 
-    override fun chapterListParse(response: Response): List<SChapter> = parseChapters(response.asJsoup())
+    override fun chapterListParse(response: Response): List<SChapter> =
+        parseChapters(response.asJsoup())
 
-    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> = Observable.fromCallable {
-        val response = client.newCall(chapterListRequest(manga)).execute()
-        val totalPages = response.header("X-Pages")?.toIntOrNull() ?: 1
-        val firstPage = response.use { parseChapters(it.asJsoup()) }
+    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> =
+        Observable.fromCallable {
+            val response = client.newCall(chapterListRequest(manga)).execute()
+            val totalPages = response.header("X-Pages")?.toIntOrNull() ?: 1
+            val firstPage = response.use { parseChapters(it.asJsoup()) }
 
-        firstPage + (2..totalPages).flatMap { page ->
-            client.newCall(chapterPageRequest(manga, page)).execute().use {
-                parseChapters(it.asJsoup())
+            firstPage + (2..totalPages).flatMap { page ->
+                client.newCall(chapterPageRequest(manga, page)).execute().use {
+                    parseChapters(it.asJsoup())
+                }
+            }
+        }.subscribeOn(Schedulers.io())
+
+    // Paid chapters link to /auth/login without a chapter id until they're bought.
+    private fun parseChapters(document: Document): List<SChapter> =
+        document.select("a[href^=/leer/][data-chapter-num]").map { element ->
+            SChapter.create().apply {
+                url = element.absUrl("href").toHttpUrl().encodedPath
+                name = element.selectFirst("[data-cl-title]")!!.text()
+
+                element.attr("data-chapter-num").toFloatOrNull()?.let {
+                    chapter_number = it
+                }
+
+                date_upload = element.select("span[title]")
+                    .firstNotNullOfOrNull { span ->
+                        span.attr("title").parseUploadDate()
+                            .takeIf { it != 0L }
+                    }
+                    ?: element.select("span")
+                        .firstNotNullOfOrNull { span ->
+                            span.text().parseUploadDate()
+                                .takeIf { it != 0L }
+                        }
+                    ?: 0L
             }
         }
-    }.subscribeOn(Schedulers.io())
 
-    // paid chapters link to /auth/login without a chapter id until they're bought
-    private fun parseChapters(document: Document): List<SChapter> = document.select("a[href^=/leer/][data-chapter-num]").map { element ->
-        SChapter.create().apply {
-            url = element.absUrl("href").toHttpUrl().encodedPath
-            name = element.selectFirst("[data-cl-title]")!!.text()
-            element.attr("data-chapter-num").toFloatOrNull()?.let { chapter_number = it }
-            date_upload = element.selectFirst("[data-cl-title] + div > span")?.text().parseRelativeDate()
-        }
-    }
+    override fun pageListParse(response: Response): List<Page> =
+        response.asJsoup()
+            .select("img.page-img")
+            .mapIndexed { index, img ->
+                Page(
+                    index,
+                    imageUrl = img.attr("abs:data-src").ifEmpty { img.absUrl("src") },
+                )
+            }
 
-    override fun pageListParse(response: Response): List<Page> = response.asJsoup()
-        .select("img.page-img")
-        .mapIndexed { index, img -> Page(index, imageUrl = img.attr("abs:data-src").ifEmpty { img.absUrl("src") }) }
-
-    override fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+    override fun imageUrlParse(response: Response): String =
+        throw UnsupportedOperationException()
 
     override fun getFilterList(): FilterList = FilterList(
         SortFilter("views"),
@@ -176,8 +210,70 @@ class MHScans : HttpSource() {
         GenreFilter(),
     )
 
-    private fun String?.parseRelativeDate(): Long {
-        val (amount, unit) = this?.lowercase()?.let(RELATIVE_DATE::find)?.destructured ?: return 0L
+    private fun String?.parseUploadDate(): Long {
+        if (this.isNullOrBlank()) return 0L
+
+        val value = lowercase().trim()
+
+        // Spanish absolute date: Subido el 13 de octubre de 2026.
+        val absoluteDate = Regex(
+            """(?:subido el )?(\d{1,2}) de ([\p{L}]+) de (\d{4})""",
+        ).find(value)
+
+        if (absoluteDate != null) {
+            val (day, monthName, year) = absoluteDate.destructured
+
+            val month = when (monthName) {
+                "enero" -> 1
+                "febrero" -> 2
+                "marzo" -> 3
+                "abril" -> 4
+                "mayo" -> 5
+                "junio" -> 6
+                "julio" -> 7
+                "agosto" -> 8
+                "septiembre", "setiembre" -> 9
+                "octubre" -> 10
+                "noviembre" -> 11
+                "diciembre" -> 12
+                else -> return 0L
+            }
+
+            return runCatching {
+                LocalDate.of(
+                    year.toInt(),
+                    month,
+                    day.toInt(),
+                ).atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrDefault(0L)
+        }
+
+        // English absolute date: Oct 13, 2026.
+        val englishDate = runCatching {
+            LocalDate.parse(
+                this.trim(),
+                DateTimeFormatter.ofPattern(
+                    "MMM d, yyyy",
+                    Locale.ENGLISH,
+                ),
+            )
+        }.getOrNull()
+
+        if (englishDate != null) {
+            return englishDate.atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        }
+
+        // Spanish relative date: Hace 6 horas, Hace 2 días, etc.
+        val relative = Regex(
+            """hace\s+(\d+)\s+([\p{L}]+)""",
+        ).find(value) ?: return 0L
+
+        val (amount, unit) = relative.destructured
+
         val chronoUnit = when {
             unit.startsWith("min") -> ChronoUnit.MINUTES
             unit.startsWith("h") -> ChronoUnit.HOURS
@@ -187,10 +283,12 @@ class MHScans : HttpSource() {
             unit.startsWith("a") -> ChronoUnit.YEARS
             else -> return 0L
         }
-        return ZonedDateTime.now().minus(amount.toLong(), chronoUnit).toInstant().toEpochMilli()
-    }
 
-    companion object {
-        private val RELATIVE_DATE = Regex("""hace (\d+) (\p{L}+)""")
+        return runCatching {
+            ZonedDateTime.now()
+                .minus(amount.toLong(), chronoUnit)
+                .toInstant()
+                .toEpochMilli()
+        }.getOrDefault(0L)
     }
 }
