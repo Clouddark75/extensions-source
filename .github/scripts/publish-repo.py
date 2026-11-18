@@ -46,10 +46,10 @@ REPO_BASE_URL = (
 
 REPO_NAME = "Clouddark75 Extensions"
 REPO_WEBSITE = (
-    "https://github.com/Clouddark75/extensions-source"
-REPO_V2_INDEX_URL = f"{REPO_BASE_URL}/index-v2.json"    
+    "https://github.com/Clouddark75/extensions-source"  
 )
 
+REPO_V2_INDEX_URL = f"{REPO_BASE_URL}/index-v2.json"
 
 # ---------------------------------------------------------------------------
 # Directories
