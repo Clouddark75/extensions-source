@@ -1418,13 +1418,13 @@
         "name": "Elite Babes",
         "packageName": "eu.kanade.tachiyomi.extension.all.elitebabes",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.elitebabes-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.elitebabes-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.elitebabes-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.elitebabes-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.elitebabes.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -1514,13 +1514,13 @@
         "name": "Femjoy Hunter",
         "packageName": "eu.kanade.tachiyomi.extension.all.femjoyhunter",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.femjoyhunter-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.femjoyhunter-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.femjoyhunter-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.femjoyhunter-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.femjoyhunter.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -1670,13 +1670,13 @@
         "name": "FTV Hunter",
         "packageName": "eu.kanade.tachiyomi.extension.all.ftvhunter",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.ftvhunter-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.ftvhunter-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.ftvhunter-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.ftvhunter-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.ftvhunter.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -3188,13 +3188,13 @@
         "name": "Joymii Hub",
         "packageName": "eu.kanade.tachiyomi.extension.all.joymiihub",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.joymiihub-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.joymiihub-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.joymiihub-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.joymiihub-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.joymiihub.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -5573,13 +5573,13 @@
         "name": "MANGA Plus by SHUEISHA",
         "packageName": "eu.kanade.tachiyomi.extension.all.mangaplus",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.mangaplus-v1.6.68.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.mangaplus-v1.6.68.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.mangaplus-v1.6.69.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.mangaplus-v1.6.69.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.mangaplus.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106068",
-        "versionName": "1.6.68",
+        "versionCode": "106069",
+        "versionName": "1.6.69",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -6035,13 +6035,13 @@
         "name": "Metart Hunter",
         "packageName": "eu.kanade.tachiyomi.extension.all.metarthunter",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.metarthunter-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.metarthunter-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.metarthunter-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.metarthunter-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.metarthunter.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -7088,13 +7088,13 @@
         "name": "Playmate Hunter",
         "packageName": "eu.kanade.tachiyomi.extension.all.playmatehunter",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.playmatehunter-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.playmatehunter-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.playmatehunter-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.playmatehunter-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.playmatehunter.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -8357,13 +8357,13 @@
         "name": "Webtoons.com",
         "packageName": "eu.kanade.tachiyomi.extension.all.webtoons",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.webtoons-v1.6.3.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.webtoons-v1.6.3.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.webtoons-v1.6.4.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.webtoons-v1.6.4.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.webtoons.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106003",
-        "versionName": "1.6.3",
+        "versionCode": "106004",
+        "versionName": "1.6.4",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -8453,13 +8453,13 @@
         "name": "XArt Hunter",
         "packageName": "eu.kanade.tachiyomi.extension.all.xarthunter",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.xarthunter-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.xarthunter-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.xarthunter-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.xarthunter-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.xarthunter.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -9263,13 +9263,13 @@
         "name": "YellowNote",
         "packageName": "eu.kanade.tachiyomi.extension.all.yellownote",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.yellownote-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.yellownote-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.yellownote-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.yellownote-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.all.yellownote.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -9650,13 +9650,13 @@
         "name": "Comic Verse",
         "packageName": "eu.kanade.tachiyomi.extension.ar.comicverse",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.comicverse-v1.6.22.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.comicverse-v1.6.22.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.comicverse-v1.6.23.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.comicverse-v1.6.23.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ar.comicverse.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106022",
-        "versionName": "1.6.22",
+        "versionCode": "106023",
+        "versionName": "1.6.23",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -9797,13 +9797,13 @@
         "name": "Goon Scans",
         "packageName": "eu.kanade.tachiyomi.extension.ar.goonscans",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.goonscans-v1.6.3.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.goonscans-v1.6.3.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.goonscans-v1.6.4.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.goonscans-v1.6.4.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ar.goonscans.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106003",
-        "versionName": "1.6.3",
+        "versionCode": "106004",
+        "versionName": "1.6.4",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -10385,41 +10385,20 @@
         "name": "Murim",
         "packageName": "eu.kanade.tachiyomi.extension.ar.murim",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.murim-v1.6.20.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.murim-v1.6.20.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.murim-v1.6.21.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.murim-v1.6.21.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ar.murim.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106020",
-        "versionName": "1.6.20",
+        "versionCode": "106021",
+        "versionName": "1.6.21",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
             "id": "4966914277555229831",
             "name": "Murim",
             "language": "ar",
-            "baseUrl": "https://www.murim.site"
-          }
-        ]
-      },
-      {
-        "name": "NeverScans",
-        "packageName": "eu.kanade.tachiyomi.extension.ar.neverscans",
-        "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.neverscans-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.neverscans-v1.6.2.jar",
-          "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ar.neverscans.png"
-        },
-        "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
-        "contentWarning": "CONTENT_WARNING_MIXED",
-        "sources": [
-          {
-            "id": "8433210273073845288",
-            "name": "NeverScans",
-            "language": "ar",
-            "baseUrl": "https://neverscans.com"
+            "baseUrl": "https://murim-manga.blogspot.com"
           }
         ]
       },
@@ -10742,13 +10721,13 @@
         "name": "Utsukushii",
         "packageName": "eu.kanade.tachiyomi.extension.bg.utsukushii",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-bg.utsukushii-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-bg.utsukushii-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-bg.utsukushii-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-bg.utsukushii-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.bg.utsukushii.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -12023,13 +12002,13 @@
         "name": "Comix",
         "packageName": "eu.kanade.tachiyomi.extension.en.comix",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.comix-v1.6.64.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.comix-v1.6.64.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.comix-v1.6.65.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.comix-v1.6.65.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.comix.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106064",
-        "versionName": "1.6.64",
+        "versionCode": "106065",
+        "versionName": "1.6.65",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -12464,13 +12443,13 @@
         "name": "Dynasty Scans",
         "packageName": "eu.kanade.tachiyomi.extension.en.dynasty",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.dynasty-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.dynasty-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.dynasty-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.dynasty-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.dynasty.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -14417,13 +14396,13 @@
         "name": "KeroScans",
         "packageName": "eu.kanade.tachiyomi.extension.en.keroscans",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.keroscans-v1.6.9.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.keroscans-v1.6.9.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.keroscans-v1.6.10.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.keroscans-v1.6.10.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.keroscans.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106009",
-        "versionName": "1.6.9",
+        "versionCode": "106010",
+        "versionName": "1.6.10",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -17873,13 +17852,13 @@
         "name": "Milftoon",
         "packageName": "eu.kanade.tachiyomi.extension.en.milftoon",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.milftoon-v1.6.59.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.milftoon-v1.6.59.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.milftoon-v1.6.60.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.milftoon-v1.6.60.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.milftoon.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106059",
-        "versionName": "1.6.59",
+        "versionCode": "106060",
+        "versionName": "1.6.60",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -17999,13 +17978,13 @@
         "name": "MurimScan",
         "packageName": "eu.kanade.tachiyomi.extension.en.murimscan",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.murimscan-v1.6.55.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.murimscan-v1.6.55.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.murimscan-v1.6.56.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.murimscan-v1.6.56.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.murimscan.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106055",
-        "versionName": "1.6.55",
+        "versionCode": "106056",
+        "versionName": "1.6.56",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -18209,13 +18188,13 @@
         "name": "Ninko Comics",
         "packageName": "eu.kanade.tachiyomi.extension.en.ninkocomics",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.ninkocomics-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.ninkocomics-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.ninkocomics-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.ninkocomics-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.en.ninkocomics.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -22262,27 +22241,6 @@
         ]
       },
       {
-        "name": "Es.Mi2Manga",
-        "packageName": "eu.kanade.tachiyomi.extension.es.esmi2manga",
-        "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-es.esmi2manga-v1.6.60.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-es.esmi2manga-v1.6.60.jar",
-          "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.es.esmi2manga.png"
-        },
-        "extensionLib": "1.6",
-        "versionCode": "106060",
-        "versionName": "1.6.60",
-        "contentWarning": "CONTENT_WARNING_MIXED",
-        "sources": [
-          {
-            "id": "1024617013674150903",
-            "name": "Es.Mi2Manga",
-            "language": "es",
-            "baseUrl": "https://es.mi2manga.com"
-          }
-        ]
-      },
-      {
         "name": "EternalMangas",
         "packageName": "eu.kanade.tachiyomi.extension.es.eternalmangas",
         "resources": {
@@ -24398,13 +24356,13 @@
         "name": "Yupmanga",
         "packageName": "eu.kanade.tachiyomi.extension.es.yupmanga",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-es.yupmanga-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-es.yupmanga-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-es.yupmanga-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-es.yupmanga-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.es.yupmanga.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -24559,27 +24517,6 @@
             "name": "AstralManga",
             "language": "fr",
             "baseUrl": "https://astral-manga.fr"
-          }
-        ]
-      },
-      {
-        "name": "Harmony-Scan",
-        "packageName": "eu.kanade.tachiyomi.extension.fr.bananascan",
-        "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-fr.bananascan-v1.6.60.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-fr.bananascan-v1.6.60.jar",
-          "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.fr.bananascan.png"
-        },
-        "extensionLib": "1.6",
-        "versionCode": "106060",
-        "versionName": "1.6.60",
-        "contentWarning": "CONTENT_WARNING_MIXED",
-        "sources": [
-          {
-            "id": "3121632933690925888",
-            "name": "Harmony-Scan",
-            "language": "fr",
-            "baseUrl": "https://harmony-scan.fr"
           }
         ]
       },
@@ -27419,27 +27356,6 @@
         ]
       },
       {
-        "name": "OkyyKomik",
-        "packageName": "eu.kanade.tachiyomi.extension.id.okyykomik",
-        "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.okyykomik-v1.6.21.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.okyykomik-v1.6.21.jar",
-          "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.id.okyykomik.png"
-        },
-        "extensionLib": "1.6",
-        "versionCode": "106021",
-        "versionName": "1.6.21",
-        "contentWarning": "CONTENT_WARNING_MIXED",
-        "sources": [
-          {
-            "id": "8361715798247396418",
-            "name": "OkyyKomik",
-            "language": "id",
-            "baseUrl": "https://www.okyykomik.my.id"
-          }
-        ]
-      },
-      {
         "name": "Omicaso",
         "packageName": "eu.kanade.tachiyomi.extension.id.omicaso",
         "resources": {
@@ -27611,20 +27527,20 @@
         "name": "Ryukomik",
         "packageName": "eu.kanade.tachiyomi.extension.id.ryukomik",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.ryukomik-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.ryukomik-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.ryukomik-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.ryukomik-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.id.ryukomik.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
             "id": "8514921831398456146",
             "name": "Ryukomik",
             "language": "id",
-            "baseUrl": "https://ryukomik.my.id"
+            "baseUrl": "https://ryukomik.com"
           }
         ]
       },
@@ -28724,13 +28640,13 @@
         "name": "COMIC FUZ",
         "packageName": "eu.kanade.tachiyomi.extension.ja.comicfuz",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.comicfuz-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.comicfuz-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.comicfuz-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.comicfuz-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ja.comicfuz.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -30074,13 +29990,13 @@
         "name": "NihonKuni",
         "packageName": "eu.kanade.tachiyomi.extension.ja.mangagun",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.mangagun-v1.6.3.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.mangagun-v1.6.3.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.mangagun-v1.6.4.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.mangagun-v1.6.4.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ja.mangagun.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106003",
-        "versionName": "1.6.3",
+        "versionCode": "106004",
+        "versionName": "1.6.4",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -30620,13 +30536,13 @@
         "name": "Music Book Japan",
         "packageName": "eu.kanade.tachiyomi.extension.ja.musicbookjp",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.musicbookjp-v1.6.4.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.musicbookjp-v1.6.4.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.musicbookjp-v1.6.5.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.musicbookjp-v1.6.5.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ja.musicbookjp.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106004",
-        "versionName": "1.6.4",
+        "versionCode": "106005",
+        "versionName": "1.6.5",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -31466,13 +31382,13 @@
         "name": "Yomonga",
         "packageName": "eu.kanade.tachiyomi.extension.ja.yomonga",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.yomonga-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.yomonga-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ja.yomonga-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ja.yomonga-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ja.yomonga.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -31814,32 +31730,32 @@
         "name": "Wolf.com",
         "packageName": "eu.kanade.tachiyomi.extension.ko.wolfdotcom",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ko.wolfdotcom-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ko.wolfdotcom-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ko.wolfdotcom-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ko.wolfdotcom-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.ko.wolfdotcom.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
             "id": "5583626852311652499",
             "name": "늑대닷컴 - 웹툰",
             "language": "ko",
-            "baseUrl": "https://wfwf507.com"
+            "baseUrl": "https://wfwf541.com"
           },
           {
             "id": "7074060458114951398",
             "name": "늑대닷컴 - 만화책",
             "language": "ko",
-            "baseUrl": "https://wfwf507.com"
+            "baseUrl": "https://wfwf541.com"
           },
           {
             "id": "4225505094399546613",
             "name": "늑대닷컴 - 포토툰",
             "language": "ko",
-            "baseUrl": "https://wfwf507.com"
+            "baseUrl": "https://wfwf541.com"
           }
         ]
       },
@@ -32162,13 +32078,13 @@
         "name": "BenDezOmniHero",
         "packageName": "eu.kanade.tachiyomi.extension.pt.bendezomnihero",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.bendezomnihero-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.bendezomnihero-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.bendezomnihero-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.bendezomnihero-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.bendezomnihero.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -32183,13 +32099,13 @@
         "name": "Blackout Comics",
         "packageName": "eu.kanade.tachiyomi.extension.pt.blackoutcomics",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.blackoutcomics-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.blackoutcomics-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.blackoutcomics-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.blackoutcomics-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.blackoutcomics.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -32666,13 +32582,13 @@
         "name": "Hentai Comics",
         "packageName": "eu.kanade.tachiyomi.extension.pt.hentaicomics",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.hentaicomics-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.hentaicomics-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.hentaicomics-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.hentaicomics-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.hentaicomics.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -33170,13 +33086,13 @@
         "name": "Leitor de Mangas",
         "packageName": "eu.kanade.tachiyomi.extension.pt.leitordemangas",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.leitordemangas-v1.6.58.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.leitordemangas-v1.6.58.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.leitordemangas-v1.6.59.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.leitordemangas-v1.6.59.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.leitordemangas.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106058",
-        "versionName": "1.6.58",
+        "versionCode": "106059",
+        "versionName": "1.6.59",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -33422,13 +33338,13 @@
         "name": "Manga NXY",
         "packageName": "eu.kanade.tachiyomi.extension.pt.manganyx",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.manganyx-v1.6.6.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.manganyx-v1.6.6.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.manganyx-v1.6.7.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.manganyx-v1.6.7.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.manganyx.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106006",
-        "versionName": "1.6.6",
+        "versionCode": "106007",
+        "versionName": "1.6.7",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -33464,13 +33380,13 @@
         "name": "Mangas Brasuka",
         "packageName": "eu.kanade.tachiyomi.extension.pt.mangasbrasuka",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.mangasbrasuka-v1.6.61.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.mangasbrasuka-v1.6.61.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.mangasbrasuka-v1.6.62.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.mangasbrasuka-v1.6.62.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.mangasbrasuka.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106061",
-        "versionName": "1.6.61",
+        "versionCode": "106062",
+        "versionName": "1.6.62",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -33674,13 +33590,13 @@
         "name": "Mugiwaras Oficial",
         "packageName": "eu.kanade.tachiyomi.extension.pt.mugiwarasoficial",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.mugiwarasoficial-v1.6.61.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.mugiwarasoficial-v1.6.61.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.mugiwarasoficial-v1.6.62.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.mugiwarasoficial-v1.6.62.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.mugiwarasoficial.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106061",
-        "versionName": "1.6.61",
+        "versionCode": "106062",
+        "versionName": "1.6.62",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -33758,13 +33674,13 @@
         "name": "Nexus Mangás",
         "packageName": "eu.kanade.tachiyomi.extension.pt.nexusmangas",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.nexusmangas-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.nexusmangas-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.nexusmangas-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.nexusmangas-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.nexusmangas.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -34262,13 +34178,13 @@
         "name": "Super Ecchi",
         "packageName": "eu.kanade.tachiyomi.extension.pt.superecchi",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.superecchi-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.superecchi-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.superecchi-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.superecchi-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.pt.superecchi.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -36593,13 +36509,13 @@
         "name": "Ailura Scans",
         "packageName": "eu.kanade.tachiyomi.extension.tr.ailurascans",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.ailurascans-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.ailurascans-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.ailurascans-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.ailurascans-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.ailurascans.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -36740,13 +36656,13 @@
         "name": "Duck Scans",
         "packageName": "eu.kanade.tachiyomi.extension.tr.duckscans",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.duckscans-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.duckscans-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.duckscans-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.duckscans-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.duckscans.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -37160,13 +37076,13 @@
         "name": "Luna Scans",
         "packageName": "eu.kanade.tachiyomi.extension.tr.lunascans",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.lunascans-v1.6.63.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.lunascans-v1.6.63.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.lunascans-v1.6.64.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.lunascans-v1.6.64.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.lunascans.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106063",
-        "versionName": "1.6.63",
+        "versionCode": "106064",
+        "versionName": "1.6.64",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -37433,13 +37349,13 @@
         "name": "Manga-TR",
         "packageName": "eu.kanade.tachiyomi.extension.tr.mangatr",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.mangatr-v1.6.25.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.mangatr-v1.6.25.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.mangatr-v1.6.26.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.mangatr-v1.6.26.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.mangatr.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106025",
-        "versionName": "1.6.25",
+        "versionCode": "106026",
+        "versionName": "1.6.26",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -37745,6 +37661,27 @@
         ]
       },
       {
+        "name": "Oblivion Scans",
+        "packageName": "eu.kanade.tachiyomi.extension.tr.oblivionscans",
+        "resources": {
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.oblivionscans-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.oblivionscans-v1.6.2.jar",
+          "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.oblivionscans.png"
+        },
+        "extensionLib": "1.6",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
+        "contentWarning": "CONTENT_WARNING_MIXED",
+        "sources": [
+          {
+            "id": "6347787465770700871",
+            "name": "Oblivion Scans",
+            "language": "tr",
+            "baseUrl": "https://oblivionscans.com"
+          }
+        ]
+      },
+      {
         "name": "OkuToon",
         "packageName": "eu.kanade.tachiyomi.extension.tr.okutoon",
         "resources": {
@@ -37937,13 +37874,13 @@
         "name": "Raindrop Fansub",
         "packageName": "eu.kanade.tachiyomi.extension.tr.raindropfansub",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.raindropfansub-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.raindropfansub-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-tr.raindropfansub-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-tr.raindropfansub-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.tr.raindropfansub.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -39176,13 +39113,13 @@
         "name": "LuotTruyen",
         "packageName": "eu.kanade.tachiyomi.extension.vi.luottruyen",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-vi.luottruyen-v1.6.13.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-vi.luottruyen-v1.6.13.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-vi.luottruyen-v1.6.14.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-vi.luottruyen-v1.6.14.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.vi.luottruyen.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106013",
-        "versionName": "1.6.13",
+        "versionCode": "106014",
+        "versionName": "1.6.14",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -41561,13 +41498,13 @@
         "name": "Manwa",
         "packageName": "eu.kanade.tachiyomi.extension.zh.manwa",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-zh.manwa-v1.6.2.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-zh.manwa-v1.6.2.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-zh.manwa-v1.6.3.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-zh.manwa-v1.6.3.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.zh.manwa.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106002",
-        "versionName": "1.6.2",
+        "versionCode": "106003",
+        "versionName": "1.6.3",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
@@ -41960,13 +41897,13 @@
         "name": "Toptoon.net",
         "packageName": "eu.kanade.tachiyomi.extension.zh.toptoon",
         "resources": {
-          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-zh.toptoon-v1.6.1.apk",
-          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-zh.toptoon-v1.6.1.jar",
+          "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-zh.toptoon-v1.6.2.apk",
+          "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-zh.toptoon-v1.6.2.jar",
           "iconUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/icon/eu.kanade.tachiyomi.extension.zh.toptoon.png"
         },
         "extensionLib": "1.6",
-        "versionCode": "106001",
-        "versionName": "1.6.1",
+        "versionCode": "106002",
+        "versionName": "1.6.2",
         "contentWarning": "CONTENT_WARNING_MIXED",
         "sources": [
           {
