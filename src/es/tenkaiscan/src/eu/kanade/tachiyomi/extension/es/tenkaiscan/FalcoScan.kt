@@ -3,10 +3,7 @@ package eu.kanade.tachiyomi.extension.es.tenkaiscan
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
-import android.graphics.Paint
 import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
@@ -185,10 +182,35 @@ abstract class FalcoScan : KeiSource() {
                 )
                 postTranslate(left, top)
             }
-            val paint = Paint().apply {
-                if (piece.t and 4 != 0) colorFilter = ColorMatrixColorFilter(INVERT_MATRIX)
+            if (piece.t and 4 != 0) {
+                val pixels = IntArray(fragment.width * fragment.height)
+                fragment.getPixels(
+                    pixels,
+                    0,
+                    fragment.width,
+                    0,
+                    0,
+                    fragment.width,
+                    fragment.height,
+                )
+                for (i in pixels.indices) {
+                    val pixel = pixels[i]
+                    pixels[i] = (pixel and -0x1000000) or
+                        ((255 - (pixel shr 16 and 0xFF)) shl 16) or
+                        ((255 - (pixel shr 8 and 0xFF)) shl 8) or
+                        (255 - (pixel and 0xFF))
+                }
+                fragment.setPixels(
+                    pixels,
+                    0,
+                    fragment.width,
+                    0,
+                    0,
+                    fragment.width,
+                    fragment.height,
+                )
             }
-            canvas.drawBitmap(fragment, matrix, paint)
+            canvas.drawBitmap(fragment, matrix, null)
             fragment.recycle()
         }
 
@@ -245,14 +267,6 @@ abstract class FalcoScan : KeiSource() {
     companion object {
         private const val SCRAMBLED_PARAM = "falco_scrambled"
         private val COVER_REGEX = Regex("""url\('([^']+)'\)""")
-        private val INVERT_MATRIX = ColorMatrix(
-            floatArrayOf(
-                -1f, 0f, 0f, 0f, 255f,
-                0f, -1f, 0f, 0f, 255f,
-                0f, 0f, -1f, 0f, 255f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
     }
 }
 
