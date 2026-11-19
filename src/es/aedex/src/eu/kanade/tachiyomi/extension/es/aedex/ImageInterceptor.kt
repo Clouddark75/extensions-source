@@ -155,7 +155,7 @@ class ImageInterceptor : Interceptor {
         image.recycle()
 
         val buffer = Buffer()
-        result.compress(Bitmap.CompressFormat.JPEG, 90, buffer.outputStream())
+        result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())
         result.recycle()
         return response.newBuilder()
             .body(buffer.asResponseBody(MEDIA_TYPE, buffer.size))
