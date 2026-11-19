@@ -17,6 +17,8 @@ import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
+import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Source
@@ -58,15 +60,43 @@ abstract class Aedex : Catharsis() {
             Fetch.DOCUMENT.from(getChapterUrl(chapter)),
             FormBody.Builder().add("data", ready.redirectData!!).build(),
         ).asJsoup()
-        val xorKey = reader.select("script:not([src])").firstNotNullOfOrNull { XOR_KEY_REGEX.find(it.data()) }?.groupValues?.get(1).orEmpty()
-        return reader.select("canvas.manga-page-canvas").mapIndexed { index, canvas ->
-            // XOR key and scramble key for ImageInterceptor; pages without data-k aren't shuffled
-            val imageUrl = canvas.absUrl("data-src").toHttpUrl().newBuilder()
-                .fragment("$xorKey:${canvas.attr("data-k")}")
-                .build()
-                .toString()
-            Page(index, url = reader.location(), imageUrl = imageUrl)
+
+        val canvases = reader.select("canvas.manga-page-canvas")
+        if (canvases.isEmpty()) {
+            throw IOException("No se encontraron páginas en el capítulo")
         }
+
+        val readerUrl = reader.location()
+        val html = reader.html()
+
+        val seed = reader.getElementById("bv-vault")?.attr("data-bv-seed")
+            ?.takeIf(String::isNotBlank)
+            ?: SEED_REGEX.find(html)?.groupValues?.get(1)
+            ?: throw IOException("No se encontró la clave de seguridad del lector (seed)")
+
+        val lectorJson = reader.select("script").firstNotNullOfOrNull { script ->
+            LECTOR_REGEX.find(script.data())?.groupValues?.get(1)
+                ?: LECTOR_REGEX.find(script.html())?.groupValues?.get(1)
+        } ?: LECTOR_REGEX.find(html)?.groupValues?.get(1)
+            ?: throw IOException("No se encontró la configuración del lector")
+
+        val lector = lectorJson.parseAs<LectorDto>()
+        val clockOffset = lector.now - Clock.System.now().toEpochMilliseconds()
+        val readerOrigin = readerUrl.toHttpUrl().let { "${it.scheme}://${it.host}" }
+        val fragment = "${lector.t}:$seed:${lector.h}:$clockOffset:${lector.xorByte}"
+
+        return canvases
+            .filter { it.hasAttr("data-h") && it.attr("data-h").isNotBlank() }
+            .mapIndexed { index, canvas ->
+                val handle = canvas.attr("data-h")
+                val imageUrl = readerOrigin.toHttpUrl().newBuilder()
+                    .addPathSegments("lector/p/$handle")
+                    .addQueryParameter("q", "hq")
+                    .fragment(fragment)
+                    .build()
+                    .toString()
+                Page(index, url = readerUrl, imageUrl = imageUrl)
+            }
     }
 
     override fun getImageRequest(page: Page): Request = super.getImageRequest(page).newBuilder()
@@ -74,6 +104,7 @@ abstract class Aedex : Catharsis() {
         .build()
 
     companion object {
-        private val XOR_KEY_REGEX = Regex("""\bvar XOR_KEY\s*=\s*(\d+)""")
+        private val LECTOR_REGEX = Regex("""window\.__LECTOR__\s*=\s*(\{.+?\});?""")
+        private val SEED_REGEX = Regex("""data-bv-seed[\\":= ]+([a-f0-9]{32})""")
     }
 }
