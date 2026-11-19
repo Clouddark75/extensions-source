@@ -141,9 +141,17 @@ class ImageInterceptor : Interceptor {
         }
         val plain = if (xorKey == 0) response else response.xor(xorKey)
         if (scrambleKey.isBlank()) return plain
+
+        val gutter = response.header("X-Tile-Gutter")
+            ?.toIntOrNull()
+            ?.takeIf { it in 1..63 } ?: 0
+
         val image = plain.body.use { BitmapFactory.decodeStream(it.byteStream()) }
             ?: throw IOException("Undecodable page image")
-        val result = descramble(image) { width, height -> tilePlan(mulberry32(scrambleKey.hashCode()), width, height) }
+
+        val result = descramble(image, gutter) { width, height ->
+            tilePlan(mulberry32(scrambleKey.hashCode()), width, height)
+        }
         image.recycle()
 
         val buffer = Buffer()
