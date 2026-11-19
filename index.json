@@ -1724,6 +1724,34 @@
     ]
   },
   {
+    "name": "Gallery Epic",
+    "pkg": "eu.kanade.tachiyomi.extension.all.galleryepic",
+    "apk": "tachiyomi-all.galleryepic-v1.6.1.apk",
+    "jar": "tachiyomi-all.galleryepic-v1.6.1.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.galleryepic-v1.6.1.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.galleryepic-v1.6.1.jar",
+    "icon": "eu.kanade.tachiyomi.extension.all.galleryepic.png",
+    "lang": "all",
+    "code": 106001,
+    "version": "1.6.1",
+    "nsfw": 3,
+    "contentWarning": "MIXED",
+    "sources": [
+      {
+        "name": "Gallery Epic",
+        "lang": "en",
+        "id": 5621791889139364299,
+        "baseUrl": "https://galleryepic.com"
+      },
+      {
+        "name": "Gallery Epic",
+        "lang": "zh",
+        "id": 4370512651306488776,
+        "baseUrl": "https://galleryepic.com"
+      }
+    ]
+  },
+  {
     "name": "GlobalComix",
     "pkg": "eu.kanade.tachiyomi.extension.all.globalcomix",
     "apk": "tachiyomi-all.globalcomix-v1.6.2.apk",
@@ -2088,6 +2116,40 @@
         "lang": "ja",
         "id": 6754172311859665554,
         "baseUrl": "https://hennojin.com"
+      }
+    ]
+  },
+  {
+    "name": "Hentai20.ink (unoriginal)",
+    "pkg": "eu.kanade.tachiyomi.extension.all.hentai20ink",
+    "apk": "tachiyomi-all.hentai20ink-v1.6.59.apk",
+    "jar": "tachiyomi-all.hentai20ink-v1.6.59.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.hentai20ink-v1.6.59.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.hentai20ink-v1.6.59.jar",
+    "icon": "eu.kanade.tachiyomi.extension.all.hentai20ink.png",
+    "lang": "all",
+    "code": 106059,
+    "version": "1.6.59",
+    "nsfw": 3,
+    "contentWarning": "MIXED",
+    "sources": [
+      {
+        "name": "Hentai20.ink (unoriginal)",
+        "lang": "all",
+        "id": 2602706581383358969,
+        "baseUrl": "https://www.hentai20.ink"
+      },
+      {
+        "name": "Hentai20.ink (unoriginal)",
+        "lang": "en",
+        "id": 2040440472226999633,
+        "baseUrl": "https://www.hentai20.ink"
+      },
+      {
+        "name": "Hentai20.ink (unoriginal)",
+        "lang": "ko",
+        "id": 7010405604412975120,
+        "baseUrl": "https://www.hentai20.ink"
       }
     ]
   },
@@ -3772,14 +3834,14 @@
   {
     "name": "Lunar Manga",
     "pkg": "eu.kanade.tachiyomi.extension.all.lunaranime",
-    "apk": "tachiyomi-all.lunaranime-v1.6.8.apk",
-    "jar": "tachiyomi-all.lunaranime-v1.6.8.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.lunaranime-v1.6.8.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.lunaranime-v1.6.8.jar",
+    "apk": "tachiyomi-all.lunaranime-v1.6.9.apk",
+    "jar": "tachiyomi-all.lunaranime-v1.6.9.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.lunaranime-v1.6.9.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.lunaranime-v1.6.9.jar",
     "icon": "eu.kanade.tachiyomi.extension.all.lunaranime.png",
     "lang": "all",
-    "code": 106008,
-    "version": "1.6.8",
+    "code": 106009,
+    "version": "1.6.9",
     "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
@@ -3812,14 +3874,14 @@
   {
     "name": "Luscious",
     "pkg": "eu.kanade.tachiyomi.extension.all.luscious",
-    "apk": "tachiyomi-all.luscious-v1.6.2.apk",
-    "jar": "tachiyomi-all.luscious-v1.6.2.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.luscious-v1.6.2.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.luscious-v1.6.2.jar",
+    "apk": "tachiyomi-all.luscious-v1.6.3.apk",
+    "jar": "tachiyomi-all.luscious-v1.6.3.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-all.luscious-v1.6.3.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-all.luscious-v1.6.3.jar",
     "icon": "eu.kanade.tachiyomi.extension.all.luscious.png",
     "lang": "all",
-    "code": 106002,
-    "version": "1.6.2",
+    "code": 106003,
+    "version": "1.6.3",
     "nsfw": 3,
     "contentWarning": "MIXED",
     "sources": [
@@ -10724,14 +10786,14 @@
   {
     "name": "ProComic",
     "pkg": "eu.kanade.tachiyomi.extension.ar.procomic",
-    "apk": "tachiyomi-ar.procomic-v1.6.10.apk",
-    "jar": "tachiyomi-ar.procomic-v1.6.10.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.procomic-v1.6.10.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.procomic-v1.6.10.jar",
+    "apk": "tachiyomi-ar.procomic-v1.6.11.apk",
+    "jar": "tachiyomi-ar.procomic-v1.6.11.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ar.procomic-v1.6.11.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ar.procomic-v1.6.11.jar",
     "icon": "eu.kanade.tachiyomi.extension.ar.procomic.png",
     "lang": "ar",
-    "code": 106010,
-    "version": "1.6.10",
+    "code": 106011,
+    "version": "1.6.11",
     "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
@@ -13710,6 +13772,28 @@
         "lang": "en",
         "id": 4395452767720916400,
         "baseUrl": "https://hentaidad.com"
+      }
+    ]
+  },
+  {
+    "name": "HentaiDeck",
+    "pkg": "eu.kanade.tachiyomi.extension.en.hentaideck",
+    "apk": "tachiyomi-en.hentaideck-v1.6.2.apk",
+    "jar": "tachiyomi-en.hentaideck-v1.6.2.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.hentaideck-v1.6.2.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.hentaideck-v1.6.2.jar",
+    "icon": "eu.kanade.tachiyomi.extension.en.hentaideck.png",
+    "lang": "en",
+    "code": 106002,
+    "version": "1.6.2",
+    "nsfw": 3,
+    "contentWarning": "MIXED",
+    "sources": [
+      {
+        "name": "HentaiDeck",
+        "lang": "en",
+        "id": 3060711657360263651,
+        "baseUrl": "https://hentaideck.com"
       }
     ]
   },
@@ -20012,14 +20096,14 @@
   {
     "name": "ReiManga",
     "pkg": "eu.kanade.tachiyomi.extension.en.reimanga",
-    "apk": "tachiyomi-en.reimanga-v1.6.9.apk",
-    "jar": "tachiyomi-en.reimanga-v1.6.9.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.reimanga-v1.6.9.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.reimanga-v1.6.9.jar",
+    "apk": "tachiyomi-en.reimanga-v1.6.10.apk",
+    "jar": "tachiyomi-en.reimanga-v1.6.10.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.reimanga-v1.6.10.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.reimanga-v1.6.10.jar",
     "icon": "eu.kanade.tachiyomi.extension.en.reimanga.png",
     "lang": "en",
-    "code": 106009,
-    "version": "1.6.9",
+    "code": 106010,
+    "version": "1.6.10",
     "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
@@ -20826,14 +20910,14 @@
   {
     "name": "Temple Scan",
     "pkg": "eu.kanade.tachiyomi.extension.en.templescan",
-    "apk": "tachiyomi-en.templescan-v1.6.69.apk",
-    "jar": "tachiyomi-en.templescan-v1.6.69.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.templescan-v1.6.69.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.templescan-v1.6.69.jar",
+    "apk": "tachiyomi-en.templescan-v1.6.70.apk",
+    "jar": "tachiyomi-en.templescan-v1.6.70.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-en.templescan-v1.6.70.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-en.templescan-v1.6.70.jar",
     "icon": "eu.kanade.tachiyomi.extension.en.templescan.png",
     "lang": "en",
-    "code": 106069,
-    "version": "1.6.69",
+    "code": 106070,
+    "version": "1.6.70",
     "nsfw": 3,
     "contentWarning": "MIXED",
     "sources": [
@@ -22340,14 +22424,14 @@
   {
     "name": "AnzManga",
     "pkg": "eu.kanade.tachiyomi.extension.es.anzmanga",
-    "apk": "tachiyomi-es.anzmanga-v1.6.1.apk",
-    "jar": "tachiyomi-es.anzmanga-v1.6.1.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-es.anzmanga-v1.6.1.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-es.anzmanga-v1.6.1.jar",
+    "apk": "tachiyomi-es.anzmanga-v1.6.2.apk",
+    "jar": "tachiyomi-es.anzmanga-v1.6.2.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-es.anzmanga-v1.6.2.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-es.anzmanga-v1.6.2.jar",
     "icon": "eu.kanade.tachiyomi.extension.es.anzmanga.png",
     "lang": "es",
-    "code": 106001,
-    "version": "1.6.1",
+    "code": 106002,
+    "version": "1.6.2",
     "nsfw": 1,
     "contentWarning": "MIXED",
     "sources": [
@@ -26758,14 +26842,14 @@
   {
     "name": "Luvyaa",
     "pkg": "eu.kanade.tachiyomi.extension.id.Luvyaa",
-    "apk": "tachiyomi-id.Luvyaa-v1.6.7.apk",
-    "jar": "tachiyomi-id.Luvyaa-v1.6.7.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.Luvyaa-v1.6.7.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.Luvyaa-v1.6.7.jar",
+    "apk": "tachiyomi-id.Luvyaa-v1.6.8.apk",
+    "jar": "tachiyomi-id.Luvyaa-v1.6.8.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.Luvyaa-v1.6.8.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.Luvyaa-v1.6.8.jar",
     "icon": "eu.kanade.tachiyomi.extension.id.Luvyaa.png",
     "lang": "id",
-    "code": 106007,
-    "version": "1.6.7",
+    "code": 106008,
+    "version": "1.6.8",
     "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
@@ -26773,7 +26857,7 @@
         "name": "Luvyaa",
         "lang": "id",
         "id": 1316015886884953118,
-        "baseUrl": "https://v5.luvyaa.co"
+        "baseUrl": "https://v6.luvyaa.co"
       }
     ]
   },
@@ -28694,14 +28778,14 @@
   {
     "name": "Siikomik",
     "pkg": "eu.kanade.tachiyomi.extension.id.siimanga",
-    "apk": "tachiyomi-id.siimanga-v1.6.61.apk",
-    "jar": "tachiyomi-id.siimanga-v1.6.61.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.siimanga-v1.6.61.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.siimanga-v1.6.61.jar",
+    "apk": "tachiyomi-id.siimanga-v1.6.62.apk",
+    "jar": "tachiyomi-id.siimanga-v1.6.62.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.siimanga-v1.6.62.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.siimanga-v1.6.62.jar",
     "icon": "eu.kanade.tachiyomi.extension.id.siimanga.png",
     "lang": "id",
-    "code": 106061,
-    "version": "1.6.61",
+    "code": 106062,
+    "version": "1.6.62",
     "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
@@ -28709,7 +28793,7 @@
         "name": "Siikomik",
         "lang": "id",
         "id": 4762501899936439936,
-        "baseUrl": "https://siikomik.id"
+        "baseUrl": "https://siikomik.com"
       }
     ]
   },
@@ -28892,22 +28976,22 @@
   {
     "name": "Kaguya",
     "pkg": "eu.kanade.tachiyomi.extension.id.yubikiri",
-    "apk": "tachiyomi-id.yubikiri-v1.6.64.apk",
-    "jar": "tachiyomi-id.yubikiri-v1.6.64.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.yubikiri-v1.6.64.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.yubikiri-v1.6.64.jar",
+    "apk": "tachiyomi-id.yubikiri-v1.6.66.apk",
+    "jar": "tachiyomi-id.yubikiri-v1.6.66.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-id.yubikiri-v1.6.66.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-id.yubikiri-v1.6.66.jar",
     "icon": "eu.kanade.tachiyomi.extension.id.yubikiri.png",
     "lang": "id",
-    "code": 106064,
-    "version": "1.6.64",
-    "nsfw": 3,
+    "code": 106066,
+    "version": "1.6.66",
+    "nsfw": 2,
     "contentWarning": "MIXED",
     "sources": [
       {
         "name": "Kaguya",
         "lang": "id",
-        "id": 1557304490417397104,
-        "baseUrl": "https://02.kaguya.pro"
+        "id": 3822381168124807791,
+        "baseUrl": "https://01.kaguya.re"
       }
     ]
   },
@@ -32852,6 +32936,28 @@
     ]
   },
   {
+    "name": "RidiBooks",
+    "pkg": "eu.kanade.tachiyomi.extension.ko.ridibooks",
+    "apk": "tachiyomi-ko.ridibooks-v1.6.1.apk",
+    "jar": "tachiyomi-ko.ridibooks-v1.6.1.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-ko.ridibooks-v1.6.1.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-ko.ridibooks-v1.6.1.jar",
+    "icon": "eu.kanade.tachiyomi.extension.ko.ridibooks.png",
+    "lang": "ko",
+    "code": 106001,
+    "version": "1.6.1",
+    "nsfw": 2,
+    "contentWarning": "MIXED",
+    "sources": [
+      {
+        "name": "RidiBooks",
+        "lang": "ko",
+        "id": 5486336157341144793,
+        "baseUrl": "https://ridibooks.com"
+      }
+    ]
+  },
+  {
     "name": "Newtoki (SBXH)",
     "pkg": "eu.kanade.tachiyomi.extension.ko.sbxh",
     "apk": "tachiyomi-ko.sbxh-v1.6.2.apk",
@@ -33658,14 +33764,14 @@
   {
     "name": "Fleur Blanche",
     "pkg": "eu.kanade.tachiyomi.extension.pt.fleurblanche",
-    "apk": "tachiyomi-pt.fleurblanche-v1.6.65.apk",
-    "jar": "tachiyomi-pt.fleurblanche-v1.6.65.jar",
-    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.fleurblanche-v1.6.65.apk",
-    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.fleurblanche-v1.6.65.jar",
+    "apk": "tachiyomi-pt.fleurblanche-v1.6.66.apk",
+    "jar": "tachiyomi-pt.fleurblanche-v1.6.66.jar",
+    "apkUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/apk/tachiyomi-pt.fleurblanche-v1.6.66.apk",
+    "jarUrl": "https://raw.githubusercontent.com/Clouddark75/extensions-source/repo3/jar/tachiyomi-pt.fleurblanche-v1.6.66.jar",
     "icon": "eu.kanade.tachiyomi.extension.pt.fleurblanche.png",
     "lang": "pt-BR",
-    "code": 106065,
-    "version": "1.6.65",
+    "code": 106066,
+    "version": "1.6.66",
     "nsfw": 3,
     "contentWarning": "MIXED",
     "sources": [
@@ -33673,7 +33779,7 @@
         "name": "Fleur Blanche",
         "lang": "pt-BR",
         "id": 2748000026130339026,
-        "baseUrl": "https://fbsscan.com"
+        "baseUrl": "https://squadxfbs.com"
       }
     ]
   },
