@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.extension.es.aedex
 
+import android.util.LruCache
 import eu.kanade.tachiyomi.multisrc.catharsis.Catharsis
 import eu.kanade.tachiyomi.multisrc.catharsis.ChapterDto
 import eu.kanade.tachiyomi.multisrc.catharsis.MangaDto
@@ -13,6 +14,7 @@ import keiyoushi.network.fetch
 import keiyoushi.network.get
 import keiyoushi.network.post
 import keiyoushi.utils.asJsoup
+import keiyoushi.utils.attrOrNull
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
 import keiyoushi.utils.tryParse
@@ -25,7 +27,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -61,9 +62,10 @@ abstract class Aedex : Catharsis() {
 
     override suspend fun redeemReaderPass(capToken: String, sitekey: String, fetch: Fetch): ReaderPassDto {
         val signer = signer ?: throw IOException("Reader keys not found")
+        val headers = headersBuilder().set(signer.buildName, signer.buildId).build()
         client.post(
             "$baseUrl/lector/pase",
-            headersBuilder().set(signer.buildName, signer.buildId).build(),
+            headers,
             fetch,
             ReaderPassRequest(capToken, sitekey).toJsonRequestBody(),
             ensureSuccess = false,
@@ -101,11 +103,11 @@ abstract class Aedex : Catharsis() {
                         response.code == 409 && retry -> signer = null
                         else -> {
                             val code = response.apiError()?.code
-                            // The pass is gone, or was given to another IP: solve a new one
-                            if (response.code == 403 && code == "READER_PASS_REQUIRED" && retry) {
-                                renewPass = true
-                            } else {
-                                throw response.siteError(code)
+                            when {
+                                // The pass is gone, or was given to another IP: solve a new one
+                                response.code == 403 && code == "READER_PASS_REQUIRED" && retry -> renewPass = true
+                                code == "LOGIN_REQUIRED" -> throw IOException(LOGIN_REQUIRED_MESSAGE)
+                                else -> throw response.siteError(code)
                             }
                         }
                     }
@@ -119,8 +121,11 @@ abstract class Aedex : Catharsis() {
     }
 
     private suspend fun loadSigner(chapter: SChapter): ReaderSigner {
-        val vault = client.get(getChapterUrl(chapter), headersBuilder().build(), Fetch.DOCUMENT).asJsoup().getElementById("aedex-reader-vault")
-        return ReaderSigner("ax", vault?.attr("data-t").orEmpty(), vault?.attr("data-s").orEmpty())
+        val vault = client.get(getChapterUrl(chapter), Fetch.DOCUMENT).asJsoup().getElementById("aedex-reader-vault")
+            ?: throw IOException("Reader keys not found")
+        val token = vault.attrOrNull("data-t") ?: throw IOException("Reader keys not found")
+        val seed = vault.attrOrNull("data-s") ?: throw IOException("Reader keys not found")
+        return ReaderSigner("ax", token, seed)
     }
 
     private suspend fun openReader(chapter: SChapter): Document {
@@ -128,7 +133,8 @@ abstract class Aedex : Catharsis() {
         val freeReader = FreeReader()
         val free = requestFreeReader(chapter, fetch, freeReader)
         // WebSockets stay on OkHttp: Cronet can't upgrade a connection
-        val ready = freeReader.countdown(network.client, headersBuilder().set("Origin", baseUrl).build(), free.wsUrl, free.wsTicket)
+        val wsHeaders = headersBuilder().set("Origin", baseUrl).build()
+        val ready = freeReader.countdown(network.client, wsHeaders, free.wsUrl, free.wsTicket)
         return client.post(
             ready.redirectUrl!!,
             Fetch.DOCUMENT.from(getChapterUrl(chapter)),
@@ -138,7 +144,7 @@ abstract class Aedex : Catharsis() {
 
     override suspend fun getPageList(chapter: SChapter): List<Page> {
         val session = readerSession(openReader(chapter))
-        sessions[chapter.url] = session
+        sessions.put(chapter.url, session)
         return List(session.pageCount) { index ->
             Page(index, url = session.readerUrl, imageUrl = session.imageUrl(index, chapter.url))
         }
@@ -156,7 +162,7 @@ abstract class Aedex : Catharsis() {
         )
     }
 
-    private val sessions = ConcurrentHashMap<String, ReaderSession>()
+    private val sessions = LruCache<String, ReaderSession>(10)
     private val sessionLock = Mutex()
 
     // The page list Mihon caches can hold the keys of a visit the site forgot:
@@ -164,7 +170,7 @@ abstract class Aedex : Catharsis() {
     private fun renewSession(chapterKey: String, staleSeed: String): ReaderSession? = runBlocking {
         sessionLock.withLock {
             sessions[chapterKey]?.takeIf { it.keys.seed != staleSeed }
-                ?: readerSession(openReader(SChapter.create().apply { url = chapterKey })).also { sessions[chapterKey] = it }
+                ?: readerSession(openReader(SChapter.create().apply { url = chapterKey })).also { sessions.put(chapterKey, it) }
         }
     }
 
@@ -178,3 +184,5 @@ abstract class Aedex : Catharsis() {
         private val LECTOR_REGEX = Regex("""window\.__LECTOR__\s*=\s*(\{.*?\});""")
     }
 }
+
+internal const val LOGIN_REQUIRED_MESSAGE = "Inicia sesión en WebView para leer este capítulo"
