@@ -181,6 +181,7 @@ abstract class Aedex : Catharsis() {
                 seed,
                 lector.liveKey,
                 lector.now - Clock.System.now().toEpochMilliseconds(),
+                lector.xorByte,
             ),
             handles = handles,
         )
