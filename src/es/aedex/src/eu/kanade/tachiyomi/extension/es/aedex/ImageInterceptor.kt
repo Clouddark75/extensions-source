@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.os.Build
 import eu.kanade.tachiyomi.multisrc.catharsis.TilePlan
 import eu.kanade.tachiyomi.multisrc.catharsis.descramble
 import keiyoushi.network.Fetch
@@ -26,9 +25,6 @@ import kotlin.time.Clock
 class ImageInterceptor(
     // A new visit to the reader for a chapter, given the seed of the stale one
     private val renewSession: (chapterKey: String, staleSeed: String) -> ReaderSession?,
-    private val imageFormat: () -> String,
-    private val jpegQuality: () -> Int,
-    private val webpCompression: () -> Int,
 ) : Interceptor {
 
     private val liveTokens = ConcurrentHashMap<String, LiveToken>()
@@ -132,47 +128,27 @@ class ImageInterceptor(
         val image = plain.body.use { BitmapFactory.decodeStream(it.byteStream()) }
             ?: throw IOException("Undecodable page image")
 
-        val result = try {
-            val gutter = if (
-                tileGutter > 0 &&
-                image.width - 16 * tileGutter >= MIN_IMAGE_SIZE &&
-                image.height - 16 * tileGutter >= MIN_IMAGE_SIZE
-            ) {
-                tileGutter
-            } else {
-                0
-            }
-
-            descramble(image, gutter) { width, height ->
-                tilePlan(mulberry32(scrambleKey), width, height)
-            }
-        } finally {
-            image.recycle()
+        val gutter = if (
+            tileGutter > 0 &&
+            image.width - 16 * tileGutter >= MIN_IMAGE_SIZE &&
+            image.height - 16 * tileGutter >= MIN_IMAGE_SIZE
+        ) {
+            tileGutter
+        } else {
+            0
         }
 
-        try {
-            val (format, mediaType, quality) = when (imageFormat()) {
-                FORMAT_PNG -> Triple(Bitmap.CompressFormat.PNG, PNG_MEDIA_TYPE, 100)
-                FORMAT_JPEG -> Triple(Bitmap.CompressFormat.JPEG, JPEG_MEDIA_TYPE, jpegQuality().coerceIn(0, 100))
-                else -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        Triple(Bitmap.CompressFormat.WEBP_LOSSLESS, WEBP_MEDIA_TYPE, webpCompression().coerceIn(0, 100))
-                    } else {
-                        Triple(Bitmap.CompressFormat.PNG, PNG_MEDIA_TYPE, 100)
-                    }
-                }
-            }
-
-            val buffer = Buffer()
-            val compressed = result.compress(format, quality, buffer.outputStream())
-            if (!compressed) throw IOException("Image encoding failed")
-
-            return response.newBuilder()
-                .body(buffer.asResponseBody(mediaType, buffer.size))
-                .build()
-        } finally {
-            result.recycle()
+        val result = descramble(image, gutter) { width, height ->
+            tilePlan(mulberry32(scrambleKey), width, height)
         }
+        image.recycle()
+
+        val buffer = Buffer()
+        result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())
+        result.recycle()
+        return response.newBuilder()
+            .body(buffer.asResponseBody(MEDIA_TYPE, buffer.size))
+            .build()
     }
 
     private fun proceedPage(chain: Interceptor.Chain, request: Request, keys: VisitKeys): Response {
@@ -273,13 +249,7 @@ class ImageInterceptor(
         private const val LIVE_MARGIN = 5_000L
         private const val MAX_ATTEMPTS = 5
         private const val MIN_IMAGE_SIZE = 200
-
-        private const val FORMAT_PNG = "png"
-        private const val FORMAT_JPEG = "jpeg"
-
-        private val PNG_MEDIA_TYPE = "image/png".toMediaType()
-        private val JPEG_MEDIA_TYPE = "image/jpeg".toMediaType()
-        private val WEBP_MEDIA_TYPE = "image/webp".toMediaType()
+        private val MEDIA_TYPE = "image/jpeg".toMediaType()
     }
 }
 
