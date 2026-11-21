@@ -36,7 +36,9 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Source
-abstract class Aedex : Catharsis(), ConfigurableSource {
+abstract class Aedex :
+    Catharsis(),
+    ConfigurableSource {
 
     private val preferences by getPreferencesLazy()
 
