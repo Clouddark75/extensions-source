@@ -160,7 +160,7 @@ abstract class Aedex : Catharsis() {
         val seed = reader.selectFirst("meta[name=reader-token]")?.attr("content")
             ?.takeIf { it.isNotBlank() }
             ?: reader.selectFirst("#bv-frame[data-seed]")?.attr("data-seed")
-            ?.takeIf { it.isNotBlank() }
+                ?.takeIf { it.isNotBlank() }
             ?: throw IOException("Reader seed not found")
 
         val lector = reader.select("script").firstNotNullOfOrNull { script ->
