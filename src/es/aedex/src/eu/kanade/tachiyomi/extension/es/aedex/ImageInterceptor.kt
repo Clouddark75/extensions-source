@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.graphics.Bitmap
@@ -32,41 +33,114 @@ class ImageInterceptor(
         val request = chain.request()
         val fragment = request.url.fragment
         if (fragment == null || request.url.pathSegments.take(2) != listOf("lector", "p")) return chain.proceed(request)
-        val parts = fragment.split(':', limit = 6)
+
+        val parts = fragment.split(':', limit = 7)
         val keys = VisitKeys.parse(parts)
-        val index = parts[4].toInt()
-        val chapterKey = parts[5]
+        val hasXorByte = parts.size >= 7
+        val index = parts[if (hasXorByte) 5 else 4].toInt()
+        val chapterKey = parts[if (hasXorByte) 6 else 5]
 
-        val response = try {
-            proceedPage(chain, request, keys)
-        } catch (_: OutdatedVisitException) {
-            // The site forgot the visit this URL came from, so take the page from a new one
-            val session = renewSession(chapterKey, keys.seed)?.takeIf { index < it.pageCount } ?: throw OutdatedVisitException()
-            val renewed = request.newBuilder()
-                .url(session.imageUrl(index, chapterKey))
-                .fetch(Fetch.XHR.from(session.readerUrl))
-                .build()
-            proceedPage(chain, renewed, session.keys)
+        var currentRequest = request
+        var currentKeys = keys
+        var attempts = 0
+        var renewed = false
+
+        while (true) {
+            val response = try {
+                proceedPage(chain, currentRequest, currentKeys)
+            } catch (_: OutdatedVisitException) {
+                if (renewed) throw OutdatedVisitException()
+                val session = renewSession(chapterKey, currentKeys.seed)
+                    ?.takeIf { index < it.pageCount }
+                    ?: throw OutdatedVisitException()
+                currentRequest = request.newBuilder()
+                    .url(session.imageUrl(index, chapterKey))
+                    .fetch(Fetch.XHR.from(session.readerUrl))
+                    .build()
+                currentKeys = session.keys
+                attempts = 0
+                renewed = true
+                continue
+            } catch (e: IOException) {
+                if (attempts >= MAX_ATTEMPTS - 1) throw e
+                attempts++
+                retryDelay(attempts)
+                currentRequest = retryRequest(currentRequest, attempts)
+                continue
+            }
+
+            when {
+                response.code == 401 || response.code == 410 -> {
+                    response.close()
+                    throw IOException("La sesión de lectura expiró. Vuelve a abrir el capítulo")
+                }
+
+                response.code == 403 -> {
+                    response.close()
+                    liveTokens.remove(currentKeys.liveKey)
+                    if (attempts >= MAX_ATTEMPTS - 1) throw IOException("HTTP 403")
+                    attempts++
+                    retryDelay(attempts)
+                    currentRequest = retryRequest(currentRequest, attempts)
+                }
+
+                !response.isSuccessful -> {
+                    val code = response.code
+                    response.close()
+                    if (attempts >= MAX_ATTEMPTS - 1) throw IOException("HTTP error $code")
+                    attempts++
+                    retryDelay(attempts)
+                    currentRequest = retryRequest(currentRequest, attempts)
+                }
+
+                else -> return processPage(response, currentKeys)
+            }
         }
-        if (!response.isSuccessful) return response
+    }
 
+    private fun processPage(response: Response, keys: VisitKeys): Response {
         val pageXorKey = response.header("X-Page-Xor")?.toIntOrNull()
+            ?.takeIf { it != 0 }
+            ?: keys.xorByte
         val scrambleKey = response.header("X-Page-Key").orEmpty()
-        // The reader spaces the shuffled strips apart by this many px
-        val tileGutter = response.header("X-Tile-Gutter")?.toIntOrNull() ?: 0
+        val rawGutter = response.header("X-Tile-Gutter")?.toIntOrNull() ?: 0
+        val tileGutter = rawGutter.takeIf { it in 1 until 64 } ?: 0
 
-        // Plain, the page's XOR key, then 0x43 for older chapters, like the site's reader
         val header = response.body.source().peek().readByteArray(HEADER_SIZE)
-        val xorKey = listOfNotNull(0, pageXorKey, LEGACY_XOR_KEY).firstOrNull { isImageHeader(header.xor(it)) }
-        if (xorKey == null) {
+        var xorKey = if (isImageHeader(header)) {
+            0
+        } else {
+            pageXorKey
+        }
+
+        if (xorKey != 0 && !isImageHeader(header.xor(xorKey)) && xorKey != LEGACY_XOR_KEY) {
+            xorKey = LEGACY_XOR_KEY
+        }
+
+        if (!isImageHeader(header.xor(xorKey))) {
             response.close()
             throw IOException("Unknown page image format")
         }
+
         val plain = if (xorKey == 0) response else response.xor(xorKey)
         if (scrambleKey.isBlank()) return plain
+
         val image = plain.body.use { BitmapFactory.decodeStream(it.byteStream()) }
             ?: throw IOException("Undecodable page image")
-        val result = descramble(image, tileGutter) { width, height -> tilePlan(mulberry32(scrambleKey.hashCode()), width, height) }
+
+        val gutter = if (
+            tileGutter > 0 &&
+            image.width - 16 * tileGutter >= MIN_IMAGE_SIZE &&
+            image.height - 16 * tileGutter >= MIN_IMAGE_SIZE
+        ) {
+            tileGutter
+        } else {
+            0
+        }
+
+        val result = descramble(image, gutter) { width, height ->
+            tilePlan(mulberry32(scrambleKey), width, height)
+        }
         image.recycle()
 
         val buffer = Buffer()
@@ -80,14 +154,18 @@ class ImageInterceptor(
     private fun proceedPage(chain: Interceptor.Chain, request: Request, keys: VisitKeys): Response {
         val signer = keys.signer
         val (proofName, proof) = signer.proof("p", request.url.pathSegments[2], keys.now())
-        val response = chain.proceed(
-            request.newBuilder()
-                .url(request.url.newBuilder().fragment(null).build())
-                .header(signer.buildName, signer.buildId)
-                .header(proofName, proof)
-                .header(signer.liveName, liveToken(chain, request, keys))
-                .build(),
-        )
+        val live = liveToken(chain, request, keys)
+
+        val builder = request.newBuilder()
+            .url(request.url.newBuilder().fragment(null).build())
+            .header(signer.buildName, signer.buildId)
+            .header(proofName, proof)
+
+        if (live != null) {
+            builder.header(signer.liveName, live)
+        }
+
+        val response = chain.proceed(builder.build())
         if (response.code == 409) {
             response.close()
             throw OutdatedVisitException()
@@ -96,29 +174,65 @@ class ImageInterceptor(
     }
 
     // The site's heartbeat: pages are only served along a live token, which it hands out for a while
-    private fun liveToken(chain: Interceptor.Chain, request: Request, keys: VisitKeys): String {
-        fun cached() = liveTokens[keys.liveKey]?.takeIf { it.expiresAt > Clock.System.now().toEpochMilliseconds() }?.token
+    private fun liveToken(chain: Interceptor.Chain, request: Request, keys: VisitKeys): String? {
+        fun cached() = liveTokens[keys.liveKey]
+            ?.takeIf { it.expiresAt > Clock.System.now().toEpochMilliseconds() }
+            ?.token
+
         cached()?.let { return it }
+
         synchronized(liveTokens) {
             cached()?.let { return it }
+
             val signer = keys.signer
             val (proofName, proof) = signer.proof("v", keys.liveKey, keys.now())
             val live = chain.proceed(
                 request.newBuilder()
-                    .url(request.url.newBuilder().encodedPath("/lector/${signer.livePath}/").query(null).fragment(null).build())
+                    .url(
+                        request.url.newBuilder()
+                            .encodedPath("/lector/${signer.livePath}/")
+                            .query(null)
+                            .fragment(null)
+                            .build(),
+                    )
                     .post(LiveRequest(keys.liveKey).toJsonRequestBody())
                     .header(signer.buildName, signer.buildId)
                     .header(proofName, proof)
                     .build(),
             ).use { response ->
-                if (response.code == 409) throw OutdatedVisitException()
-                if (!response.isSuccessful) throw IOException("HTTP error ${response.code}")
-                response.parseAs<LiveTokenDto>()
-            }
+                when {
+                    response.code == 409 -> throw OutdatedVisitException()
+                    !response.isSuccessful -> null
+                    else -> runCatching { response.parseAs<LiveTokenDto>() }.getOrNull()
+                }
+            } ?: return null
+
             // Renewed a little before it runs out
             val expiresAt = Clock.System.now().toEpochMilliseconds() + maxOf(MIN_LIVE_TTL, live.ttl - LIVE_MARGIN)
             liveTokens[keys.liveKey] = LiveToken(live.token, expiresAt)
             return live.token
+        }
+    }
+
+    private fun retryRequest(request: Request, attempt: Int): Request {
+        if (attempt < 2) return request
+        return request.newBuilder()
+            .url(request.url.newBuilder().setQueryParameter("q", "sq").build())
+            .build()
+    }
+
+    private fun retryDelay(attempt: Int) {
+        val delay = when (attempt) {
+            1 -> 1_000L
+            2 -> 1_500L
+            3 -> 2_250L
+            else -> 4_000L
+        }
+        try {
+            Thread.sleep(delay)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IOException("Page request interrupted", e)
         }
     }
 
@@ -133,19 +247,21 @@ class ImageInterceptor(
         private const val HEADER_SIZE = 12L
         private const val MIN_LIVE_TTL = 5_000L
         private const val LIVE_MARGIN = 5_000L
+        private const val MAX_ATTEMPTS = 5
+        private const val MIN_IMAGE_SIZE = 200
         private val MEDIA_TYPE = "image/jpeg".toMediaType()
     }
 }
 
 // The reader's page shuffle generator
-private fun mulberry32(seed: Int): () -> Double {
-    var state = seed
+private fun mulberry32(seedKey: String): () -> Double {
+    var seed = 0
+    for (char in seedKey) seed = 31 * seed + char.code
     return {
-        state += 0x6d2b79f5
-        var t = state
+        var t = (seed + 0x6d2b79f5).also { seed = it }
         t = (t xor (t ushr 15)) * (t or 1)
         t = t xor (t + (t xor (t ushr 7)) * (t or 61))
-        (t xor (t ushr 14)).toUInt().toDouble() / 4294967296.0
+        t.toUInt().toDouble() / 4294967296.0
     }
 }
 
