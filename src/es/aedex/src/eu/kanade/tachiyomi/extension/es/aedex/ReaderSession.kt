@@ -35,12 +35,10 @@ class VisitKeys(
     override fun toString() = "$token:$seed:$liveKey:$clockOffset:$xorByte"
 
     companion object {
-        fun parse(parts: List<String>): VisitKeys {
-            return if (parts.size >= 7) {
-                VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong(), parts[4].toInt())
-            } else {
-                VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong())
-            }
+        fun parse(parts: List<String>): VisitKeys = if (parts.size >= 7) {
+            VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong(), parts[4].toInt())
+        } else {
+            VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong())
         }
     }
 }
