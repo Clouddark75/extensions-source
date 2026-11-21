@@ -144,10 +144,11 @@ class ImageInterceptor(
         image.recycle()
 
         val buffer = Buffer()
-        result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())
+        result.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, buffer.outputStream())
         result.recycle()
         return response.newBuilder()
-            .body(buffer.asResponseBody(MEDIA_TYPE, buffer.size))
+            .header("Content-Type", "image/webp")
+            .body(buffer.asResponseBody("image/webp".toMediaType(), buffer.size))
             .build()
     }
 
