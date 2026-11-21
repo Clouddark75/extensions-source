@@ -3,14 +3,11 @@ package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.util.Base64
 import android.util.LruCache
-import androidx.preference.ListPreference
-import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.multisrc.catharsis.Catharsis
 import eu.kanade.tachiyomi.multisrc.catharsis.ChapterDto
 import eu.kanade.tachiyomi.multisrc.catharsis.MangaDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassRequest
-import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import keiyoushi.annotation.Source
@@ -19,7 +16,6 @@ import keiyoushi.network.fetch
 import keiyoushi.network.get
 import keiyoushi.network.post
 import keiyoushi.utils.asJsoup
-import keiyoushi.utils.getPreferencesLazy
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
 import keiyoushi.utils.tryParse
@@ -36,11 +32,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Source
-abstract class Aedex :
-    Catharsis(),
-    ConfigurableSource {
-
-    private val preferences by getPreferencesLazy()
+abstract class Aedex : Catharsis() {
 
     override val apiUrl get() = "$baseUrl/api/backend"
 
@@ -53,43 +45,7 @@ abstract class Aedex :
 
     override fun mangaKey(manga: MangaDto) = manga.slug
 
-    override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(
-        ImageInterceptor(
-            ::renewSession,
-            { preferences.getString(PREF_IMAGE_FORMAT, FORMAT_WEBP) ?: FORMAT_WEBP },
-            { preferences.getInt(PREF_JPEG_QUALITY, 95) },
-            { preferences.getInt(PREF_WEBP_COMPRESSION, 90) },
-        ),
-    )
-
-    override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_IMAGE_FORMAT
-            title = "Formato de imagen reconstruida"
-            summary = "%s"
-            entries = arrayOf("WebP sin pérdida", "PNG", "JPEG")
-            entryValues = arrayOf(FORMAT_WEBP, FORMAT_PNG, FORMAT_JPEG)
-            setDefaultValue(FORMAT_WEBP)
-        }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_JPEG_QUALITY
-            title = "Calidad JPEG"
-            summary = "%s"
-            entries = arrayOf("60", "70", "80", "90", "95", "100")
-            entryValues = arrayOf("60", "70", "80", "90", "95", "100")
-            setDefaultValue("95")
-        }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_WEBP_COMPRESSION
-            title = "Compresión WebP sin pérdida"
-            summary = "%s"
-            entries = arrayOf("0", "25", "50", "75", "90", "95", "100")
-            entryValues = arrayOf("0", "25", "50", "75", "90", "95", "100")
-            setDefaultValue("95")
-        }.also(screen::addPreference)
-    }
+    override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(ImageInterceptor(::renewSession))
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl/$mangaPath/${chapter.url}"
 
@@ -204,7 +160,7 @@ abstract class Aedex :
         val seed = reader.selectFirst("meta[name=reader-token]")?.attr("content")
             ?.takeIf { it.isNotBlank() }
             ?: reader.selectFirst("#bv-frame[data-seed]")?.attr("data-seed")
-                ?.takeIf { it.isNotBlank() }
+            ?.takeIf { it.isNotBlank() }
             ?: throw IOException("Reader seed not found")
 
         val lector = reader.select("script").firstNotNullOfOrNull { script ->
@@ -250,15 +206,6 @@ abstract class Aedex :
     companion object {
         private const val PASS_COOKIE = "ax_rp"
         private const val MAX_ATTEMPTS = 3
-
-        private const val PREF_IMAGE_FORMAT = "aedex_image_format"
-        private const val PREF_JPEG_QUALITY = "aedex_jpeg_quality"
-        private const val PREF_WEBP_COMPRESSION = "aedex_webp_compression"
-
-        private const val FORMAT_WEBP = "webp_lossless"
-        private const val FORMAT_PNG = "png"
-        private const val FORMAT_JPEG = "jpeg"
-
         private val HEX_32_REGEX = Regex("^[0-9a-f]{32}$")
         private val READER_CONTEXT_REGEX = Regex(
             """window\.(?:readerContext|__BV_CTX__)\s*=\s*(?:JSON\.parse\(atob\("([^"]+)"\)\)|(\{[^;]+\}))""",
