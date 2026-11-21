@@ -7,6 +7,8 @@ import eu.kanade.tachiyomi.multisrc.catharsis.ChapterDto
 import eu.kanade.tachiyomi.multisrc.catharsis.MangaDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassRequest
+import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassDto
+import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassRequest
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import keiyoushi.annotation.Source
@@ -15,9 +17,14 @@ import keiyoushi.network.fetch
 import keiyoushi.network.get
 import keiyoushi.network.post
 import keiyoushi.utils.asJsoup
+import keiyoushi.utils.attrOrNull
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
+import keiyoushi.utils.toJsonRequestBody
 import keiyoushi.utils.tryParse
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,6 +32,9 @@ import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.nodes.Document
+import java.io.IOException
+import kotlin.time.Clock
 import org.jsoup.nodes.Document
 import java.io.IOException
 import kotlin.time.Clock
@@ -44,6 +54,7 @@ abstract class Aedex : Catharsis() {
 
     override fun mangaKey(manga: MangaDto) = manga.slug
 
+    override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(ImageInterceptor(::renewSession))
     override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(ImageInterceptor(::renewSession))
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl/$mangaPath/${chapter.url}"
@@ -202,5 +213,7 @@ abstract class Aedex : Catharsis() {
         private val LECTOR_REGEX = Regex("""window\.__\w+\s*=\s*(?:JSON\.parse\(atob\("([^"]+)"\)\)|(\{[^;]+\}))""")
     }
 }
+
+internal const val LOGIN_REQUIRED_MESSAGE = "Inicia sesión en WebView para leer este capítulo"
 
 internal const val LOGIN_REQUIRED_MESSAGE = "Inicia sesión en WebView para leer este capítulo"

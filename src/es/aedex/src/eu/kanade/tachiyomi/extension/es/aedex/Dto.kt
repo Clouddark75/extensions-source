@@ -11,6 +11,13 @@ class FreeReaderRequest(
 )
 
 @Serializable
+class FreeReaderRequest(
+    private val slug: String,
+    private val chapter: String,
+    private val modo: String,
+)
+
+@Serializable
 class FreeReaderDto(
     @SerialName("ws_url") val wsUrl: String,
     @SerialName("ws_ticket") val wsTicket: String,
