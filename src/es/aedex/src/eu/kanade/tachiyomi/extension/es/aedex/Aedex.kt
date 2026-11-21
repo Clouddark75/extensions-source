@@ -84,7 +84,7 @@ abstract class Aedex : Catharsis(), ConfigurableSource {
             title = "Compresión WebP sin pérdida"
             summary = "%s"
             entries = arrayOf("0", "25", "50", "75", "90", "95", "100")
-            entryValues = arrayOf("0", "25", "50", "75", "90", "95“, "100")
+            entryValues = arrayOf("0", "25", "50", "75", "90", "95", "100")
             setDefaultValue("95")
         }.also(screen::addPreference)
     }
