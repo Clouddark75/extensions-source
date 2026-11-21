@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import okhttp3.MultipartBody
 import okhttp3.Request
 import org.jsoup.nodes.Document
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
 import java.util.Locale
 
 class BarManga :
@@ -20,15 +20,10 @@ class BarManga :
         "es",
         SimpleDateFormat("dd/MM/yyyy", Locale.ROOT),
     ) {
-    override val supportsPostId = false
 
-    override val chapterDateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ROOT)
-
-    override val mangaDetailsSelectorTitle = ".breadcrumb > li:last-child > a"
-
-    override fun parsePages(document: Document): List<Page> {
+    override fun pageListParse(document: Document): List<Page> {
         val script = document.selectFirst(".manga-reader-container + script")?.data()
-            ?: return super.parsePages(document)
+            ?: return super.pageListParse(document)
                 .mapNotNull { page ->
                     page.imageUrl
                         ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
@@ -42,6 +37,7 @@ class BarManga :
         val nonce = NONCE_REGEX.find(script)?.groupValues?.last() ?: return emptyList()
         val action = ACTION_REGEX.find(script)?.groupValues?.last() ?: return emptyList()
         val chapterKey = CHAPTER_KEY_REGEX.find(script)?.groupValues?.last() ?: return emptyList()
+
         return tokens
             .map { (page, token) -> PageDto(nonce, token, page, action, chapterKey) }
             .mapIndexed { index, dto ->
@@ -49,10 +45,11 @@ class BarManga :
             }
     }
 
-    override fun getImageRequest(page: Page): Request {
+    override fun imageRequest(page: Page): Request {
         val dto = runCatching {
             page.imageUrl!!.parseAs<PageDto>()
-        }.getOrElse { return super.getImageRequest(page) }
+        }.getOrElse { return super.imageRequest(page) }
+
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("action", dto.action)
@@ -67,6 +64,7 @@ class BarManga :
             .set("X-Requested-With", "XMLHttpRequest")
             .set("Referer", page.url)
             .build()
+
         return POST("$baseUrl/wp-admin/admin-ajax.php", imageHeaders, body)
     }
 
