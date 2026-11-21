@@ -40,6 +40,7 @@ class LectorDto(
     @SerialName("h") val liveKey: String,
     val now: Long,
     val pages: List<String>,
+    val xorByte: Int = 0x43,
 )
 
 @Serializable
