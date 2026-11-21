@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,12 +23,24 @@ class ReaderSession(
         .toString()
 }
 
-class VisitKeys(val token: String, val seed: String, val liveKey: String, val clockOffset: Long) {
+class VisitKeys(
+    val token: String,
+    val seed: String,
+    val liveKey: String,
+    val clockOffset: Long,
+    val xorByte: Int = 0x43,
+) {
     val signer = ReaderSigner("bv", token, seed)
 
-    override fun toString() = "$token:$seed:$liveKey:$clockOffset"
+    override fun toString() = "$token:$seed:$liveKey:$clockOffset:$xorByte"
 
     companion object {
-        fun parse(parts: List<String>) = VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong())
+        fun parse(parts: List<String>): VisitKeys {
+            return if (parts.size >= 7) {
+                VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong(), parts[4].toInt())
+            } else {
+                VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong())
+            }
+        }
     }
 }
