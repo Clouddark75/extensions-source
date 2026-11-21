@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.util.Base64
@@ -156,25 +157,31 @@ abstract class Aedex : Catharsis() {
     }
 
     private fun readerSession(reader: Document): ReaderSession {
-        val seed = reader.select("[hidden]").firstNotNullOfOrNull { el ->
-            el.attributes().firstOrNull { it.key.startsWith("data-") && HEX_32_REGEX.matches(it.value) }?.value
-        } ?: throw IOException("Reader seed not found")
+        val seed = reader.selectFirst("meta[name=reader-token]")?.attr("content")
+            ?.takeIf { it.isNotBlank() }
+            ?: reader.selectFirst("#bv-frame[data-seed]")?.attr("data-seed")
+            ?.takeIf { it.isNotBlank() }
+            ?: throw IOException("Reader seed not found")
+
         val lector = reader.select("script").firstNotNullOfOrNull { script ->
-            LECTOR_REGEX.findAll(script.data()).firstNotNullOfOrNull { match ->
+            READER_CONTEXT_REGEX.findAll(script.data()).firstNotNullOfOrNull { match ->
                 val raw = match.groupValues[1].takeIf { it.isNotEmpty() }
                     ?.let { Base64.decode(it, Base64.DEFAULT).decodeToString() }
                     ?: match.groupValues[2]
                 runCatching { raw.parseAs<LectorDto>() }.getOrNull()
             }
-        } ?: throw IOException("Reader keys not found")
-        val handles = reader.select("canvas.manga-page-canvas, canvas[data-page]").mapNotNull { canvas ->
-            canvas.attributes().firstOrNull { attr ->
-                attr.key.startsWith("data-") && attr.key != "data-page" && attr.value.length > 16
-            }?.value
-        }.ifEmpty { throw IOException("Reader pages not found") }
+        } ?: throw IOException("Reader context not found")
+
+        val handles = lector.pages.ifEmpty { throw IOException("Reader pages not found") }
+
         return ReaderSession(
             readerUrl = reader.location(),
-            keys = VisitKeys(lector.token, seed, lector.liveKey, lector.now - Clock.System.now().toEpochMilliseconds()),
+            keys = VisitKeys(
+                lector.token,
+                seed,
+                lector.liveKey,
+                lector.now - Clock.System.now().toEpochMilliseconds(),
+            ),
             handles = handles,
         )
     }
@@ -199,7 +206,9 @@ abstract class Aedex : Catharsis() {
         private const val PASS_COOKIE = "ax_rp"
         private const val MAX_ATTEMPTS = 3
         private val HEX_32_REGEX = Regex("^[0-9a-f]{32}$")
-        private val LECTOR_REGEX = Regex("""window\.__\w+\s*=\s*(?:JSON\.parse\(atob\("([^"]+)"\)\)|(\{[^;]+\}))""")
+        private val READER_CONTEXT_REGEX = Regex(
+            """window\.(?:readerContext|__BV_CTX__)\s*=\s*(?:JSON\.parse\(atob\("([^"]+)"\)\)|(\{[^;]+\}))""",
+        )
     }
 }
 
