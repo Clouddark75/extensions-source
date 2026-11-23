@@ -1,4 +1,3 @@
-
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import kotlinx.serialization.SerialName
@@ -33,14 +32,13 @@ class FreeReaderAckDto(
     private val sig: String,
 )
 
-// The reader page's window.readerContext
+// The reader page's `window.readerContext`
 @Serializable
 class LectorDto(
     @SerialName("t") val token: String,
     @SerialName("h") val liveKey: String,
     val now: Long,
-    val pages: List<String>,
-    val xorByte: Int = 0x43,
+    val pages: List<String> = emptyList(),
 )
 
 @Serializable
@@ -52,4 +50,29 @@ class LiveRequest(
 class LiveTokenDto(
     @SerialName("l") val token: String,
     val ttl: Long,
+)
+
+// The backend's /system, for the Turnstile sitekey the login page uses
+@Serializable
+class AedexSystemDto(
+    @SerialName("turnstile_sitekey") val turnstileSitekey: String? = null,
+)
+
+@Serializable
+class AedexCsrfDto(
+    @SerialName("csrfToken") val csrfToken: String,
+)
+
+// The NextAuth session, which carries the backend access token used as a Bearer
+@Serializable
+class AedexSessionDto(
+    @SerialName("access_token") val accessToken: String? = null,
+    private val user: AedexSessionUserDto? = null,
+) {
+    fun token(): String? = accessToken ?: user?.accessToken
+}
+
+@Serializable
+class AedexSessionUserDto(
+    @SerialName("access_token") val accessToken: String? = null,
 )
