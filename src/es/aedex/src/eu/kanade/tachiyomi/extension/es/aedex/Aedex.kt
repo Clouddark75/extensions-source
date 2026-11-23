@@ -1,13 +1,16 @@
-
 package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.util.Base64
 import android.util.LruCache
+import android.widget.Toast
+import androidx.preference.Preference
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.multisrc.catharsis.Catharsis
 import eu.kanade.tachiyomi.multisrc.catharsis.ChapterDto
 import eu.kanade.tachiyomi.multisrc.catharsis.MangaDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassDto
 import eu.kanade.tachiyomi.multisrc.catharsis.ReaderPassRequest
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import keiyoushi.annotation.Source
@@ -16,14 +19,22 @@ import keiyoushi.network.fetch
 import keiyoushi.network.get
 import keiyoushi.network.post
 import keiyoushi.utils.asJsoup
+import keiyoushi.utils.attrOrNull
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
 import keiyoushi.utils.tryParse
+import keiyoushi.utils.ui.showInfo
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.nodes.Document
@@ -32,11 +43,77 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 @Source
-abstract class Aedex : Catharsis() {
+abstract class Aedex :
+    Catharsis(),
+    ConfigurableSource {
 
-    override val apiUrl get() = "$baseUrl/api/backend"
+    // The account's token goes only to the site's own host, never to a CDN or any redirect target
+    private val bearerInterceptor get() = Interceptor { chain ->
+        val request = chain.request()
+        val token = storedAccessToken()
+        if (token == null || request.url.host != baseUrl.toHttpUrl().host || request.header("Authorization") != null) {
+            chain.proceed(request)
+        } else {
+            chain.proceed(request.newBuilder().header("Authorization", "Bearer $token").build())
+        }
+    }
 
-    override val apiHeaders get() = headersBuilder()
+    // The extensions-lib stub of androidx.preference.Preference has only an empty constructor,
+    // but the app's real class has the usual (Context) one.
+    private fun clickablePreference(context: android.content.Context): Preference = Preference::class.java.getConstructor(android.content.Context::class.java).newInstance(context) as Preference
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        val login = clickablePreference(screen.context).apply {
+            key = "pref_login"
+            title = "Iniciar sesión"
+            summary = loginSummary()
+            setOnPreferenceClickListener {
+                GlobalScope.launch {
+                    runCatching { promptLogin(screen.context) }
+                        .onFailure { showInfo("No se pudo iniciar sesión", it.message ?: "Error desconocido") }
+                    withContext(Dispatchers.Main) { summary = loginSummary() }
+                }
+                true
+            }
+        }
+
+        val logout = clickablePreference(screen.context).apply {
+            key = "pref_logout"
+            title = "Cerrar sesión"
+            summary = "Cierra la sesión de tu cuenta de Aedex en la extensión"
+            setOnPreferenceClickListener {
+                GlobalScope.launch {
+                    logout()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(screen.context, "Sesión cerrada", Toast.LENGTH_SHORT).show()
+                        login.summary = loginSummary()
+                    }
+                }
+                true
+            }
+        }
+
+        val header = clickablePreference(screen.context).apply {
+            title = "Cuenta de Aedex"
+            summary = "Sin sesión solo se pueden leer 3 capítulos. Cualquier cuenta gratuita quita el límite."
+            setOnPreferenceClickListener { true }
+        }
+
+        screen.addPreference(header)
+        screen.addPreference(login)
+        screen.addPreference(logout)
+    }
+
+    private fun loginSummary() = if (storedAccessToken() != null) {
+        "Sesión iniciada"
+    } else {
+        "Inicia sesión con tu cuenta de Aedex para leer más de 3 capítulos"
+    }
+
+    public override val apiUrl get() = "$baseUrl/api/backend"
+
+    public override val apiHeaders get() = headersBuilder()
         .set("System", "aedex")
         .set("X-FK-Sistema", "1")
         .build()
@@ -45,7 +122,7 @@ abstract class Aedex : Catharsis() {
 
     override fun mangaKey(manga: MangaDto) = manga.slug
 
-    override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(ImageInterceptor(::renewSession))
+    override fun OkHttpClient.Builder.addReaderInterceptors(): OkHttpClient.Builder = addInterceptor(bearerInterceptor).addInterceptor(ImageInterceptor(::renewSession))
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl/$mangaPath/${chapter.url}"
 
@@ -86,6 +163,7 @@ abstract class Aedex : Catharsis() {
         val number = chapter.url.substringAfterLast('/').let { it.toDoubleOrNull()?.toString()?.removeSuffix(".0") ?: it }
         val body = FreeReaderRequest(slug, number, "gratis").toJsonRequestBody()
         var renewPass = false
+        var refreshedToken = false
         for (attempt in 1..MAX_ATTEMPTS) {
             val retry = attempt < MAX_ATTEMPTS
             try {
@@ -107,6 +185,8 @@ abstract class Aedex : Catharsis() {
                             when {
                                 // The pass is gone, or was given to another IP: solve a new one
                                 response.code == 403 && code == "READER_PASS_REQUIRED" && retry -> renewPass = true
+                                // The token may have expired: the session cookie can mint a fresh one
+                                code == "LOGIN_REQUIRED" && retry && !refreshedToken && refreshAccessToken() -> refreshedToken = true
                                 code == "LOGIN_REQUIRED" -> throw IOException(LOGIN_REQUIRED_MESSAGE)
                                 else -> throw response.siteError(code)
                             }
@@ -157,32 +237,19 @@ abstract class Aedex : Catharsis() {
     }
 
     private fun readerSession(reader: Document): ReaderSession {
+        // Same lookups as the site's own reader script
         val seed = reader.selectFirst("meta[name=reader-token]")?.attr("content")
-            ?.takeIf { it.isNotBlank() }
-            ?: reader.selectFirst("#bv-frame[data-seed]")?.attr("data-seed")
-            ?.takeIf { it.isNotBlank() }
+            ?: reader.getElementById("bv-frame")?.attr("data-seed")
             ?: throw IOException("Reader seed not found")
-
-        val lector = reader.select("script").firstNotNullOfOrNull { script ->
-            READER_CONTEXT_REGEX.findAll(script.data()).firstNotNullOfOrNull { match ->
-                val raw = match.groupValues[1].takeIf { it.isNotEmpty() }
-                    ?.let { Base64.decode(it, Base64.DEFAULT).decodeToString() }
-                    ?: match.groupValues[2]
-                runCatching { raw.parseAs<LectorDto>() }.getOrNull()
-            }
-        } ?: throw IOException("Reader context not found")
-
-        val handles = lector.pages.ifEmpty { throw IOException("Reader pages not found") }
-
+        val lector = reader.select("script").firstNotNullOfOrNull { LECTOR_REGEX.find(it.data())?.groupValues?.get(1) }
+            ?.let { Base64.decode(it, Base64.DEFAULT).decodeToString().parseAs<LectorDto>() }
+            ?: throw IOException("Reader keys not found")
+        val handles = lector.pages.ifEmpty {
+            reader.select("canvas.manga-page-canvas").mapNotNull { it.attrOrNull("data-cid") ?: it.attrOrNull("data-h") }
+        }.ifEmpty { throw IOException("Reader pages not found") }
         return ReaderSession(
             readerUrl = reader.location(),
-            keys = VisitKeys(
-                lector.token,
-                seed,
-                lector.liveKey,
-                lector.now - Clock.System.now().toEpochMilliseconds(),
-                lector.xorByte,
-            ),
+            keys = VisitKeys(lector.token, seed, lector.liveKey, lector.now - Clock.System.now().toEpochMilliseconds()),
             handles = handles,
         )
     }
@@ -207,10 +274,8 @@ abstract class Aedex : Catharsis() {
         private const val PASS_COOKIE = "ax_rp"
         private const val MAX_ATTEMPTS = 3
         private val HEX_32_REGEX = Regex("^[0-9a-f]{32}$")
-        private val READER_CONTEXT_REGEX = Regex(
-            """window\.(?:readerContext|__BV_CTX__)\s*=\s*(?:JSON\.parse\(atob\("([^"]+)"\)\)|(\{[^;]+\}))""",
-        )
+        private val LECTOR_REGEX = Regex("""window\.(?:readerContext|__BV_CTX__)\s*=\s*JSON\.parse\(atob\("([^"]+)"\)\)""")
     }
 }
 
-internal const val LOGIN_REQUIRED_MESSAGE = "Inicia sesión en WebView para leer este capítulo"
+internal const val LOGIN_REQUIRED_MESSAGE = "Para leer más de 3 capítulos hay que iniciar sesión: entra en los ajustes de la extensión de Aedex (si ya lo hiciste, la sesión caducó: vuelve a entrar)"
