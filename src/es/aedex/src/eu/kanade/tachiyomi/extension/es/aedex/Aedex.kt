@@ -249,7 +249,7 @@ abstract class Aedex :
         }.ifEmpty { throw IOException("Reader pages not found") }
         return ReaderSession(
             readerUrl = reader.location(),
-            keys = VisitKeys(lector.token, seed, lector.liveKey, lector.now - Clock.System.now().toEpochMilliseconds()),
+            keys = VisitKeys(lector.token, seed, lector.liveKey, lector.now - Clock.System.now().toEpochMilliseconds(), trailerKey = lector.token),
             handles = handles,
         )
     }
