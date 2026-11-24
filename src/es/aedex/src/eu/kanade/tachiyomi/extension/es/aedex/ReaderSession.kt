@@ -29,13 +29,16 @@ class VisitKeys(
     val liveKey: String,
     val clockOffset: Long,
     val xorByte: Int = 0x43,
+    val trailerKey: String = "",
 ) {
     val signer = ReaderSigner("bv", token, seed)
 
-    override fun toString() = "$token:$seed:$liveKey:$clockOffset:$xorByte"
+    override fun toString() = "$token:$seed:$liveKey:$clockOffset:$xorByte:$trailerKey"
 
     companion object {
-        fun parse(parts: List<String>): VisitKeys = if (parts.size >= 7) {
+        fun parse(parts: List<String>): VisitKeys = if (parts.size >= 8) {
+            VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong(), parts[4].toInt(), parts[5])
+        } else if (parts.size >= 7) {
             VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong(), parts[4].toInt())
         } else {
             VisitKeys(parts[0], parts[1], parts[2], parts[3].toLong())
