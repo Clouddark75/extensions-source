@@ -3,22 +3,20 @@ package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import eu.kanade.tachiyomi.multisrc.catharsis.TilePlan
-import eu.kanade.tachiyomi.multisrc.catharsis.descramble
 import keiyoushi.network.Fetch
 import keiyoushi.network.fetch
 import keiyoushi.utils.parseAs
 import keiyoushi.utils.toJsonRequestBody
-import keiyoushi.utils.xor
 import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.roundToInt
 import kotlin.time.Clock
 
 // Pages of the free reader: signed requests, XOR-masked images, shuffled over an 8x8 grid when the page has a key
@@ -34,11 +32,12 @@ class ImageInterceptor(
         val fragment = request.url.fragment
         if (fragment == null || request.url.pathSegments.take(2) != listOf("lector", "p")) return chain.proceed(request)
 
-        val parts = fragment.split(':', limit = 7)
+        val parts = fragment.split(':', limit = 8)
         val keys = VisitKeys.parse(parts)
+        val hasTrailerKey = parts.size >= 8
         val hasXorByte = parts.size >= 7
-        val index = parts[if (hasXorByte) 5 else 4].toInt()
-        val chapterKey = parts[if (hasXorByte) 6 else 5]
+        val index = parts[if (hasTrailerKey) 6 else if (hasXorByte) 5 else 4].toInt()
+        val chapterKey = parts[if (hasTrailerKey) 7 else if (hasXorByte) 6 else 5]
 
         var currentRequest = request
         var currentKeys = keys
@@ -93,27 +92,42 @@ class ImageInterceptor(
                     currentRequest = retryRequest(currentRequest, attempts)
                 }
 
-                else -> return processPage(response, currentKeys)
+                else -> return processPage(response, currentKeys, request.url.pathSegments[2])
             }
         }
     }
 
-    private fun processPage(response: Response, keys: VisitKeys): Response {
-        val pageXorKey = response.header("X-Page-Xor")?.toIntOrNull()
-            ?.takeIf { it != 0 }
+    private fun processPage(response: Response, keys: VisitKeys, handle: String): Response {
+        val contentType = response.body.contentType()
+        val rawBytes = response.body.bytes()
+
+        val trailerKey = keys.trailerKey.ifBlank { keys.token }
+        val trailer = extractTrailer(rawBytes, trailerKey, handle)
+
+        val cleanLen = trailer?.cleanLen ?: rawBytes.size
+        val pageXorKey = trailer?.xorKey
+            ?: response.header("X-Page-Xor")?.toIntOrNull()
+                ?.takeIf { it != 0 }
             ?: keys.xorByte
-        val scrambleKey = response.header("X-Page-Key").orEmpty()
-        val rawGutter = response.header("X-Tile-Gutter")?.toIntOrNull() ?: 0
+
+        val scrambleKey = trailer?.key
+            ?: response.header("X-Page-Key").orEmpty().toByteArray(Charsets.UTF_8)
+
+        val rawGutter = trailer?.gutter
+            ?: response.header("X-Tile-Gutter")?.toIntOrNull()
+            ?: 0
         val tileGutter = rawGutter.takeIf { it in 1 until 64 } ?: 0
 
-        val header = response.body.source().peek().readByteArray(HEADER_SIZE)
-        var xorKey = if (isImageHeader(header)) {
+        val header = rawBytes.copyOfRange(0, minOf(HEADER_SIZE, cleanLen))
+        var xorKey = if (trailer != null) {
+            pageXorKey
+        } else if (isImageHeader(header)) {
             0
         } else {
             pageXorKey
         }
 
-        if (xorKey != 0 && !isImageHeader(header.xor(xorKey)) && xorKey != LEGACY_XOR_KEY) {
+        if (trailer == null && xorKey != 0 && !isImageHeader(header.xor(xorKey)) && xorKey != LEGACY_XOR_KEY) {
             xorKey = LEGACY_XOR_KEY
         }
 
@@ -122,10 +136,18 @@ class ImageInterceptor(
             throw IOException("Unknown page image format")
         }
 
-        val plain = if (xorKey == 0) response else response.xor(xorKey)
-        if (scrambleKey.isBlank()) return plain
+        val plainBytes = rawBytes.copyOf(cleanLen)
+        if (xorKey != 0) {
+            for (i in plainBytes.indices) {
+                plainBytes[i] = (plainBytes[i].toInt() xor xorKey).toByte()
+            }
+        }
 
-        val image = plain.body.use { BitmapFactory.decodeStream(it.byteStream()) }
+        if (scrambleKey.isEmpty()) {
+            return responseWithBytes(response, plainBytes, contentType)
+        }
+
+        val image = BitmapFactory.decodeByteArray(plainBytes, 0, plainBytes.size)
             ?: throw IOException("Undecodable page image")
 
         val gutter = if (
@@ -138,10 +160,11 @@ class ImageInterceptor(
             0
         }
 
-        val result = descramble(image, gutter) { width, height ->
-            tilePlan(mulberry32(scrambleKey), width, height)
+        val result = try {
+            AedexSlicePlanner.descramble(image, scrambleKey, gutter)
+        } finally {
+            image.recycle()
         }
-        image.recycle()
 
         val buffer = Buffer()
         result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())
@@ -149,6 +172,104 @@ class ImageInterceptor(
         return response.newBuilder()
             .body(buffer.asResponseBody(MEDIA_TYPE, buffer.size))
             .build()
+    }
+
+    private fun extractTrailer(bytes: ByteArray, trailerKey: String, handle: String): PageTrailer? {
+        if (bytes.size < TRAILER_SUFFIX_SIZE) return null
+
+        val trailerLength = ((bytes[bytes.size - 2].toInt() and 0xFF) shl 8) or
+            (bytes[bytes.size - 1].toInt() and 0xFF)
+
+        if (trailerLength !in MIN_TRAILER_SIZE..MAX_TRAILER_SIZE) return null
+
+        val trailerStart = bytes.size - TRAILER_SUFFIX_SIZE - trailerLength
+        if (trailerStart < 0) return null
+
+        val mask = MessageDigest.getInstance("SHA-256")
+            .digest("$trailerKey:m0:$handle".toByteArray(Charsets.UTF_8))
+
+        val decoded = ByteArray(trailerLength) { i ->
+            (bytes[trailerStart + i].toInt() xor mask[i].toInt()).toByte()
+        }
+
+        if (
+            decoded[0] != 0xAE.toByte() ||
+            decoded[1] != 0xDE.toByte() ||
+            decoded[2] != 0x58.toByte() ||
+            decoded[3] != 0x01.toByte()
+        ) {
+            return null
+        }
+
+        val xorKey = decoded[4].toInt() and 0xFF
+        val gutter = decoded[5].toInt() and 0xFF
+        val keyLength = decoded[6].toInt() and 0xFF
+
+        if (
+            keyLength > MAX_KEY_LENGTH ||
+            trailerLength != MIN_TRAILER_SIZE + keyLength ||
+            gutter !in 0 until 64
+        ) {
+            return null
+        }
+
+        val key = decoded.copyOfRange(7, 7 + keyLength)
+
+        if (key.any { (it.toInt() and 0xFF) !in 0x20..0x7E }) return null
+
+        return PageTrailer(
+            cleanLen = trailerStart,
+            key = key,
+            xorKey = xorKey,
+            gutter = gutter,
+        )
+    }
+
+    private fun responseWithBytes(response: Response, bytes: ByteArray, contentType: MediaType?): Response {
+        val buffer = Buffer().write(bytes)
+        return response.newBuilder()
+            .body(buffer.asResponseBody(contentType, buffer.size))
+            .build()
+    }
+
+    private fun isImageHeader(header: ByteArray): Boolean {
+        if (header.size >= 12) {
+            if (
+                header[0] == 'R'.code.toByte() &&
+                header[1] == 'I'.code.toByte() &&
+                header[2] == 'F'.code.toByte() &&
+                header[3] == 'F'.code.toByte() &&
+                header[8] == 'W'.code.toByte() &&
+                header[9] == 'E'.code.toByte() &&
+                header[10] == 'B'.code.toByte() &&
+                header[11] == 'P'.code.toByte()
+            ) {
+                return true
+            }
+        }
+
+        if (
+            header.size >= 8 &&
+            header[0] == 0x89.toByte() &&
+            header[1] == 'P'.code.toByte() &&
+            header[2] == 'N'.code.toByte() &&
+            header[3] == 'G'.code.toByte() &&
+            header[4] == 0x0D.toByte() &&
+            header[5] == 0x0A.toByte() &&
+            header[6] == 0x1A.toByte() &&
+            header[7] == 0x0A.toByte()
+        ) {
+            return true
+        }
+
+        return header.size >= 3 &&
+            header[0] == 0xFF.toByte() &&
+            header[1] == 0xD8.toByte() &&
+            header[2] == 0xFF.toByte()
+    }
+
+    private fun ByteArray.xor(key: Int): ByteArray = ByteArray(size) { i ->
+        (this[i].toInt() xor key).toByte()
     }
 
     private fun proceedPage(chain: Interceptor.Chain, request: Request, keys: VisitKeys): Response {
@@ -242,9 +363,20 @@ class ImageInterceptor(
 
     private class OutdatedVisitException : IOException("The site's reader changed, open the chapter again")
 
+    private class PageTrailer(
+        val cleanLen: Int,
+        val key: ByteArray,
+        val xorKey: Int,
+        val gutter: Int,
+    )
+
     companion object {
         private const val LEGACY_XOR_KEY = 0x43
-        private const val HEADER_SIZE = 12L
+        private const val HEADER_SIZE = 12
+        private const val TRAILER_SUFFIX_SIZE = 2
+        private const val MIN_TRAILER_SIZE = 7
+        private const val MAX_TRAILER_SIZE = 23
+        private const val MAX_KEY_LENGTH = 16
         private const val MIN_LIVE_TTL = 5_000L
         private const val LIVE_MARGIN = 5_000L
         private const val MAX_ATTEMPTS = 5
@@ -252,47 +384,3 @@ class ImageInterceptor(
         private val MEDIA_TYPE = "image/jpeg".toMediaType()
     }
 }
-
-// The reader's page shuffle generator
-private fun mulberry32(seedKey: String): () -> Double {
-    var seed = 0
-    for (char in seedKey) seed = 31 * seed + char.code
-    return {
-        var t = (seed + 0x6d2b79f5).also { seed = it }
-        t = (t xor (t ushr 15)) * (t or 1)
-        t = t xor (t + (t xor (t ushr 7)) * (t or 61))
-        t.toUInt().toDouble() / 4294967296.0
-    }
-}
-
-// The reader's 8x8 plan drawn from [random]
-private fun tilePlan(random: () -> Double, width: Int, height: Int): TilePlan {
-    val cols = boundaries(random, width)
-    val rows = boundaries(random, height)
-    return TilePlan(cols, rows, permutation(random), permutation(random))
-}
-
-private fun boundaries(random: () -> Double, total: Int): IntArray {
-    val bounds = IntArray(GRID + 1)
-    bounds[GRID] = total
-    val base = total / GRID
-    var position = 0
-    for (i in 0 until GRID - 1) {
-        val max = total - position - (GRID - 1 - i) * MIN_TILE
-        position += (base + ((random() * 0.7 - 0.35) * base).roundToInt()).coerceIn(MIN_TILE, maxOf(MIN_TILE, max))
-        bounds[i + 1] = position
-    }
-    return bounds
-}
-
-private fun permutation(random: () -> Double): IntArray {
-    val order = IntArray(GRID) { it }
-    for (i in GRID - 1 downTo 1) {
-        val j = (random() * (i + 1)).toInt()
-        order[i] = order[j].also { order[j] = order[i] }
-    }
-    return order
-}
-
-private const val GRID = 8
-private const val MIN_TILE = 16
