@@ -122,6 +122,7 @@ class ImageInterceptor(
 
         val trailerKey = keys.trailerKey.ifBlank { keys.token }
         val trailer = extractTrailer(rawBytes, trailerKey, handle)
+
         android.util.Log.d(
             "AedexDebug",
             "handle=$handle raw=${rawBytes.size} " +
@@ -234,6 +235,11 @@ class ImageInterceptor(
         val trailerLength = ((bytes[bytes.size - 2].toInt() and 0xFF) shl 8) or
             (bytes[bytes.size - 1].toInt() and 0xFF)
 
+        android.util.Log.d(
+            "AedexDebug",
+            "handle=$handle raw=${bytes.size} trailerLength=$trailerLength",
+        )
+
         if (trailerLength < 513 || trailerLength + 2 > bytes.size) return null
 
         val trailerStart = bytes.size - 2 - trailerLength
@@ -246,6 +252,12 @@ class ImageInterceptor(
         val decoded = ByteArray(trailerLength) { i ->
             (bytes[trailerStart + i].toInt() xor mask[i % mask.size].toInt()).toByte()
         }
+
+        android.util.Log.d(
+            "AedexDebug",
+            "handle=$handle decodedMagic=${decoded.take(4).joinToString("") { "%02X".format(it.toInt() and 0xFF) }} " +
+                "keyLength=${decoded.getOrNull(6)?.toInt()?.and(0xFF)}",
+        )
 
         if (
             decoded[0] != 0xAE.toByte() ||
