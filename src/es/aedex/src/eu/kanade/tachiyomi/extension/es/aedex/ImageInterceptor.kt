@@ -219,7 +219,7 @@ class ImageInterceptor(
             android.util.Log.d(
                 "AedexDebug",
                 "handle=$handle stage=slices count=${slices.size} " +
-                    "output=${outputWidth}x${outputHeight}",
+                    "output=${outputWidth}x$outputHeight",
             )
 
             for (slice in slices) {
