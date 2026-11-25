@@ -36,8 +36,24 @@ class ImageInterceptor(
         val keys = VisitKeys.parse(parts)
         val hasTrailerKey = parts.size >= 8
         val hasXorByte = parts.size >= 7
-        val index = parts[if (hasTrailerKey) 6 else if (hasXorByte) 5 else 4].toInt()
-        val chapterKey = parts[if (hasTrailerKey) 7 else if (hasXorByte) 6 else 5]
+        val index = parts[
+            if (hasTrailerKey) {
+                6
+            } else if (hasXorByte) {
+                5
+            } else {
+                4
+            },
+        ].toInt()
+        val chapterKey = parts[
+            if (hasTrailerKey) {
+                7
+            } else if (hasXorByte) {
+                6
+            } else {
+                5
+            },
+        ]
 
         var currentRequest = request
         var currentKeys = keys
