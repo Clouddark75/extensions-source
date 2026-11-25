@@ -185,7 +185,7 @@ class ImageInterceptor(
                 "header=${plainBytes.copyOfRange(0, minOf(8, plainBytes.size)).joinToString("") { "%02X".format(it.toInt() and 0xFF) }}",
         )
 
-        if (scrambleKey.isEmpty()) {
+        if (true) {
             return responseWithBytes(response, plainBytes, contentType)
         }
 
