@@ -220,21 +220,22 @@ class ImageInterceptor(
     }
 
     private fun extractTrailer(bytes: ByteArray, trailerKey: String, handle: String): PageTrailer? {
-        if (bytes.size < TRAILER_SUFFIX_SIZE) return null
+        if (bytes.size < 9) return null
 
         val trailerLength = ((bytes[bytes.size - 2].toInt() and 0xFF) shl 8) or
             (bytes[bytes.size - 1].toInt() and 0xFF)
 
-        if (trailerLength !in MIN_TRAILER_SIZE..MAX_TRAILER_SIZE) return null
+        if (trailerLength < 513 || trailerLength + 2 > bytes.size) return null
 
-        val trailerStart = bytes.size - TRAILER_SUFFIX_SIZE - trailerLength
-        if (trailerStart < 0) return null
+        val trailerStart = bytes.size - 2 - trailerLength
 
-        val mask = MessageDigest.getInstance("SHA-256")
-            .digest("$trailerKey:m0:$handle".toByteArray(Charsets.UTF_8))
+        val digest = MessageDigest.getInstance("SHA-256")
+        val m0 = digest.digest("$trailerKey:m0:$handle".toByteArray(Charsets.UTF_8))
+        val m1 = digest.digest("$trailerKey:m1:$handle".toByteArray(Charsets.UTF_8))
+        val mask = m0 + m1
 
         val decoded = ByteArray(trailerLength) { i ->
-            (bytes[trailerStart + i].toInt() xor mask[i].toInt()).toByte()
+            (bytes[trailerStart + i].toInt() xor mask[i % mask.size].toInt()).toByte()
         }
 
         if (
@@ -250,17 +251,9 @@ class ImageInterceptor(
         val gutter = decoded[5].toInt() and 0xFF
         val keyLength = decoded[6].toInt() and 0xFF
 
-        if (
-            keyLength > MAX_KEY_LENGTH ||
-            trailerLength != MIN_TRAILER_SIZE + keyLength ||
-            gutter !in 0 until 64
-        ) {
-            return null
-        }
+        if (keyLength == 0 || 7 + keyLength > trailerLength) return null
 
         val key = decoded.copyOfRange(7, 7 + keyLength)
-
-        if (key.any { (it.toInt() and 0xFF) !in 0x20..0x7E }) return null
 
         return PageTrailer(
             cleanLen = trailerStart,
