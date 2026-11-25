@@ -122,6 +122,15 @@ class ImageInterceptor(
 
         val trailerKey = keys.trailerKey.ifBlank { keys.token }
         val trailer = extractTrailer(rawBytes, trailerKey, handle)
+        android.util.Log.d(
+            "AedexDebug",
+            "handle=$handle raw=${rawBytes.size} " +
+                "trailer=${trailer != null} " +
+                "cleanLen=${trailer?.cleanLen} " +
+                "keyLength=${trailer?.key?.size} " +
+                "xorKey=${trailer?.xorKey} " +
+                "gutter=${trailer?.gutter}",
+        )
 
         val cleanLen = trailer?.cleanLen ?: rawBytes.size
         val pageXorKey = trailer?.xorKey
