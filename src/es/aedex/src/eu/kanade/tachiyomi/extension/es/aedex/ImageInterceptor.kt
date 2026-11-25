@@ -147,7 +147,7 @@ class ImageInterceptor(
             "PAGE_DATA handle=$handle url=${response.request.url} " +
                 "key=${scrambleKey.joinToString("") { "%02X".format(it.toInt() and 0xFF) }}",
         )
-            
+
         val rawGutter = trailer?.gutter
             ?: response.header("X-Tile-Gutter")?.toIntOrNull()
             ?: 0
