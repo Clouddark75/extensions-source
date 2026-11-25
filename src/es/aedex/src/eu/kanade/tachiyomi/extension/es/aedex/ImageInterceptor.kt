@@ -172,12 +172,26 @@ class ImageInterceptor(
             }
         }
 
+        android.util.Log.d(
+            "AedexDebug",
+            "handle=$handle stage=xorComplete " +
+                "xorKey=$xorKey " +
+                "header=${plainBytes.copyOfRange(0, minOf(8, plainBytes.size)).joinToString("") { "%02X".format(it.toInt() and 0xFF) }}",
+        )
+
         if (scrambleKey.isEmpty()) {
             return responseWithBytes(response, plainBytes, contentType)
         }
 
         val image = BitmapFactory.decodeByteArray(plainBytes, 0, plainBytes.size)
             ?: throw IOException("Undecodable page image")
+
+        android.util.Log.d(
+            "AedexDebug",
+            "handle=$handle stage=bitmap " +
+                "width=${image.width} height=${image.height} " +
+                "gutter=$tileGutter",
+        )
 
         val gutter = if (
             tileGutter > 0 &&
@@ -201,6 +215,13 @@ class ImageInterceptor(
             }
 
             val slices = AedexSlicePlanner(scrambleKey, image.width, image.height, gutter).slices()
+
+            android.util.Log.d(
+                "AedexDebug",
+                "handle=$handle stage=slices count=${slices.size} " +
+                    "output=${outputWidth}x${outputHeight}",
+            )
+
             for (slice in slices) {
                 canvas.drawBitmap(
                     image,
