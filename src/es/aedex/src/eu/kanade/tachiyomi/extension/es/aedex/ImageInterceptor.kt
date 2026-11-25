@@ -3,6 +3,9 @@ package eu.kanade.tachiyomi.extension.es.aedex
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import keiyoushi.network.Fetch
 import keiyoushi.network.fetch
 import keiyoushi.utils.parseAs
@@ -177,14 +180,40 @@ class ImageInterceptor(
         }
 
         val result = try {
-            AedexSlicePlanner.descramble(image, scrambleKey, gutter)
+            val outputWidth = image.width - gutter * 16
+            val outputHeight = image.height - gutter * 16
+            val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val paint = Paint().apply {
+                isFilterBitmap = false
+                isAntiAlias = false
+                isDither = false
+            }
+
+            val slices = AedexSlicePlanner(scrambleKey, image.width, image.height, gutter).slices()
+            for (slice in slices) {
+                canvas.drawBitmap(
+                    image,
+                    Rect(slice.sx, slice.sy, slice.sx + slice.sw, slice.sy + slice.sh),
+                    Rect(slice.dx, slice.dy, slice.dx + slice.sw, slice.dy + slice.sh),
+                    paint,
+                )
+            }
+
+            bitmap
         } finally {
             image.recycle()
         }
 
         val buffer = Buffer()
-        result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())
-        result.recycle()
+        try {
+            if (!result.compress(Bitmap.CompressFormat.JPEG, 95, buffer.outputStream())) {
+                throw IOException("Unable to compress reconstructed page")
+            }
+        } finally {
+            result.recycle()
+        }
+
         return response.newBuilder()
             .body(buffer.asResponseBody(MEDIA_TYPE, buffer.size))
             .build()
