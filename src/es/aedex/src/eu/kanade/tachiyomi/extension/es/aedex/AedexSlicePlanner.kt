@@ -118,7 +118,7 @@ internal class AedexSlicePlanner(
         }
 
         return {
-            seed += -0x6D2B79F5
+            seed += 0x6D2B79F5
             var t = seed
             t = (t xor (t ushr 15)) * (t or 1)
             t = t xor (t + (t xor (t ushr 7)) * (t or 61))
