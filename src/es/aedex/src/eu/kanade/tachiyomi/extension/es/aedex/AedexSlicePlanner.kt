@@ -20,8 +20,8 @@ internal class AedexSlicePlanner(
     private val inverseColumns = inverse(columns)
     private val inverseRows = inverse(rows)
 
-    private val sourceColumnOffsets = sourceOffsets(columnWidths, gutter)
-    private val sourceRowOffsets = sourceOffsets(rowHeights, gutter)
+    private val sourceColumnOffsets = sourceOffsets(IntArray(GRID) { columnWidths[columns[it]] }, gutter)
+    private val sourceRowOffsets = sourceOffsets(IntArray(GRID) { rowHeights[rows[it]] }, gutter)
 
     private val destinationColumnOffsets = destinationOffsets(columnWidths)
     private val destinationRowOffsets = destinationOffsets(rowHeights)
@@ -118,7 +118,7 @@ internal class AedexSlicePlanner(
         }
 
         return {
-            seed += -0x2938460B
+            seed += -0x6D2B79F5
             var t = seed
             t = (t xor (t ushr 15)) * (t or 1)
             t = t xor (t + (t xor (t ushr 7)) * (t or 61))
