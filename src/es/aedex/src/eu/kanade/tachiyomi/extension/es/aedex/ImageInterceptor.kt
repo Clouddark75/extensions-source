@@ -240,7 +240,7 @@ class ImageInterceptor(
             "handle=$handle raw=${bytes.size} trailerLength=$trailerLength",
         )
 
-        if (trailerLength < 513 || trailerLength + 2 > bytes.size) return null
+        if (trailerLength !in 7..23 || trailerLength + 2 > bytes.size) return null
 
         val trailerStart = bytes.size - 2 - trailerLength
 
